@@ -1,19 +1,36 @@
 [project]
 name = "smiley-bench"
 version = "0.1.0"
-description = "Add your description here"
+description = "A benchmark of how well LLMs understand SMILES"
 readme = "README.md"
 authors = [
     { name = "Sean Murphy", email = "seandata8@gmail.com" }
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "dotenv>=0.9.9",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "openai>=3.49.0",
+    "polars>=2.1.0",
     "rdkit>=2026.9.2",
+    "scipy>=1.18.1",
 ]
-
-[project.scripts]
-smiley-bench = "smiley_bench:main"
 
 [build-system]
 requires = ["uv_build>=0.12.23,<0.13.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.pytest.ini_options]
+testpaths = ["scripts", "tests"]
+python_files = ["*-test_*.py", "test_*.py"]  # numbered test scripts (e.g. 01-test_simulated_data.py) and tests/
+addopts = "--import-mode=importlib"  # lets pytest load file names that start with a number
