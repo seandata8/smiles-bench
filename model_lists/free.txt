@@ -1,0 +1,15 @@
+# OpenRouter's free models on 12 November 2026, one per line (lines starting with # are ignored).
+# Update with: uv run scripts/05-query_models.py --list-free
+baidu/ernie-5.5-flash-preview:free
+cohere/north-mini-code:free
+dots-studio/dots-3-note-preview:free
+google/gemma-4-26b-a4b-it:free
+google/gemma-4-31b-it:free
+liquid/lfm-2.5-2.6b:free
+liquid/lfm-3-1.7b:free
+nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+nvidia/nemotron-3-ultra-550b-a55b:free
+nvidia/nemotron-3.5-lightning:free
+nvidia/nemotron-3.5-super-vl:free
+recursive/flint-v1.0:free
+# thinkingmachines/inkling-2-small:free  (dropped: the free version only works in "agentic harnesses", error 403)

@@ -1,0 +1,7 @@
+# Local models in Ollama on this computer, one per line (lines starting with # are ignored).
+# Ollama must be running (the Ollama app, or `ollama serve`). Names start with "ollama/"; see `ollama list`.
+ollama/gemma4:12b
+# ollama/devstral:24b-small-2505-q4_K_M
+# Base models (not trained to follow instructions), possibly useful as a floor:
+# ollama/qwen2.5-coder:7b-base
+# ollama/qwen2.5-coder:3b-base

@@ -86,3 +86,11 @@ def test_budget_reached_stops_before_calling(fake_client, monkeypatch):
     with pytest.raises(openrouter.BudgetReached):
         openrouter.ask("some/model", "SMILES: CCO\nheavy_atoms: How many heavy atoms?", {"heavy_atoms": "number"})
     assert client.calls == 0
+
+
+def test_ollama_models_go_to_the_local_client(monkeypatch):
+    """A model named "ollama/..." is sent to Ollama without the prefix; any other model goes to OpenRouter."""
+    monkeypatch.setattr(openrouter, "local_client", lambda: "local")
+    monkeypatch.setattr(openrouter, "openrouter_client", lambda: "openrouter")
+    assert openrouter.client_and_name("ollama/gemma4:12b") == ("local", "gemma4:12b")
+    assert openrouter.client_and_name("google/gemma-4-31b-it:free") == ("openrouter", "google/gemma-4-31b-it:free")

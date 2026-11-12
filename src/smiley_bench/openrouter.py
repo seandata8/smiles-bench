@@ -1,8 +1,8 @@
 #### Preamble ####
-# Purpose: Send one benchmark prompt to a model on OpenRouter and save its response, tokens, cost and time; list
-#          OpenRouter's free models
+# Purpose: Send one benchmark prompt to a model on OpenRouter (or a local model in Ollama) and save its response,
+#          tokens, cost and time; list OpenRouter's free models
 # Author: Sean Murphy
-# Date: 11 November 2026; two-question prompts and dates added 12 November 2026
+# Date: 11 November 2026; two-question prompts, dates and local models added 12 November 2026
 # Pre-requisites: uv add openai dotenv; OPENROUTER_API_KEY in .env
 # Adapted from silicon.py in senate-forecast-2026.
 
@@ -55,6 +55,26 @@ def openrouter_client():
         timeout=TIMEOUT_SECONDS,
         max_retries=ATTEMPTS - 1,  # retries after the first attempt
     )
+
+
+@cache
+def local_client():
+    """The OpenAI library pointed at Ollama on this computer, for models named "ollama/...", e.g. "ollama/gemma4:12b".
+    Ollama ignores the API key, but the library needs one. Ollama enforces the JSON schema for any model."""
+    return OpenAI(
+        base_url="http://localhost:11434/v1",
+        api_key="ollama",
+        timeout=TIMEOUT_SECONDS,
+        max_retries=ATTEMPTS - 1,
+    )
+
+
+def client_and_name(model):
+    """Which client to ask and the model's name there: models named "ollama/..." go to Ollama on this computer
+    (without the prefix); all others go to OpenRouter."""
+    if model.startswith("ollama/"):
+        return local_client(), model.removeprefix("ollama/")
+    return openrouter_client(), model
 
 
 def total_spent():
@@ -117,9 +137,10 @@ def ask(model, prompt, answer_types, trial=1, temperature=1.0):
         "answer_types": answer_types,
     }
     start = time.perf_counter()
+    client, name = client_and_name(model)
     try:
-        response = openrouter_client().chat.completions.create(
-            model=model,
+        response = client.chat.completions.create(
+            model=name,
             messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
             temperature=temperature,
             max_tokens=MAX_TOKENS,
@@ -149,7 +170,8 @@ def ask(model, prompt, answer_types, trial=1, temperature=1.0):
         raise RuntimeError(f"No response from {model}")
 
     usage = response.usage
-    cost = (getattr(usage, "cost", None) or 0.0) if usage else 0.0  # OpenRouter reports each call's cost in dollars
+    # OpenRouter reports each call's cost in dollars; Ollama reports none (a local model is free).
+    cost = (getattr(usage, "cost", None) or 0.0) if usage else 0.0
     spent += cost
 
     record |= {
