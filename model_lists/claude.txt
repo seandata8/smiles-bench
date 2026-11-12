@@ -1,0 +1,5 @@
+# Claude 5.5 models on OpenRouter, asked by batch (--batch). They take no temperature, so they are asked at their
+# own default (see temperature_for() in src/smiley_bench/openrouter.py).
+anthropic/claude-haiku-5.5
+anthropic/claude-sonnet-5.5
+anthropic/claude-opus-5.5

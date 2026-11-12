@@ -36,8 +36,10 @@ class RateLimited(AlwaysTimesOut):
 
 @pytest.fixture
 def fake_client(monkeypatch, tmp_path):
-    """Save responses in a temporary folder, and let each test choose the fake client."""
+    """Save responses in a temporary folder, and let each test choose the fake client. OpenRouter's model list is
+    left empty, so no test goes online (an unknown model is asked at TEMPERATURE)."""
     monkeypatch.setattr(paths, "RESPONSES", tmp_path)
+    monkeypatch.setattr(openrouter, "openrouter_models", dict)
 
     def use(client):
         monkeypatch.setattr(openrouter, "openrouter_client", lambda: client)
@@ -156,7 +158,7 @@ def test_forget_timeout_deletes_only_a_saved_timeout(fake_client, tmp_path):
 def test_forget_timeout_keeps_a_real_answer(tmp_path, monkeypatch):
     monkeypatch.setattr(openrouter.paths, "RESPONSES", tmp_path)
     fields = {"heavy_atoms": "number"}
-    path = openrouter.response_path("some/model", "SMILES: CCO", fields, 1, 1.0)
+    path = openrouter.response_path("some/model", "SMILES: CCO", fields, 1)
     path.write_text('{"finish_reason": "stop", "response": "{\\"heavy_atoms\\": 3}"}')
     assert openrouter.forget_timeout("some/model", "SMILES: CCO", fields) is False
     assert path.exists()
@@ -177,3 +179,26 @@ def test_provider_error_inside_a_reply_is_raised_and_not_saved(fake_client, tmp_
     with pytest.raises(RuntimeError, match="Provider error"):
         openrouter.ask("some/model", "SMILES: CCO", {"heavy_atoms": "number"})
     assert list(tmp_path.glob("*.json")) == []
+
+
+def test_temperature_is_left_out_for_models_that_do_not_accept_one(monkeypatch):
+    models = {
+        "a/takes-temperature": {"supported_parameters": ["temperature", "max_tokens"]},
+        "b/no-temperature": {"supported_parameters": ["max_tokens", "reasoning"]},
+    }
+    monkeypatch.setattr(openrouter, "openrouter_models", lambda: models)
+    assert openrouter.temperature_for("a/takes-temperature") == openrouter.TEMPERATURE
+    assert openrouter.temperature_for("b/no-temperature") is None
+    assert openrouter.temperature_for("ollama/gemma4:12b") == openrouter.TEMPERATURE
+    assert "temperature" not in openrouter.request_body("b/no-temperature", "SMILES: CCO", {"heavy_atoms": "number"})
+    body = openrouter.request_body("a/takes-temperature", "SMILES: CCO", {"heavy_atoms": "number"})
+    assert body["temperature"] == 1.0
+
+
+def test_claude_models_get_high_reasoning_effort(monkeypatch):
+    monkeypatch.setattr(openrouter, "openrouter_models", dict)
+    body = openrouter.request_body("anthropic/claude-opus-5.5", "SMILES: CCO", {"heavy_atoms": "number"})
+    assert body["reasoning"] == {"effort": "high"}
+    assert "reasoning" not in openrouter.request_body("a/other-model", "SMILES: CCO", {"heavy_atoms": "number"})
+    record = openrouter.new_record("anthropic/claude-opus-5.5", "SMILES: CCO", {"heavy_atoms": "number"}, 1)
+    assert record["reasoning_effort"] == "high"

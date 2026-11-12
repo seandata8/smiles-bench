@@ -31,6 +31,9 @@ if not records:
     raise SystemExit(f"No saved responses in {folder / 'responses'}")
 call_schema = {
     "model_requested": pl.String,
+    "model_version": pl.String,  # not in responses saved before 12 November 2026: left empty
+    "temperature": pl.Float64,
+    "reasoning_effort": pl.String,
     "trial": pl.Int64,
     "date": pl.String,
     "prompt": pl.String,
