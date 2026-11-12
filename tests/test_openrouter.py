@@ -94,3 +94,69 @@ def test_ollama_models_go_to_the_local_client(monkeypatch):
     monkeypatch.setattr(openrouter, "openrouter_client", lambda: "openrouter")
     assert openrouter.client_and_name("ollama/gemma4:12b") == ("local", "gemma4:12b")
     assert openrouter.client_and_name("google/gemma-4-31b-it:free") == ("openrouter", "google/gemma-4-31b-it:free")
+
+
+class RateLimitedOnce(AlwaysTimesOut):
+    """Rate-limited on the first call only; the retry times out (a stand-in for any reply that gets saved)."""
+
+    def create(self, **kwargs):
+        self.calls += 1
+        request = httpx2.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+        if self.calls == 1:
+            raise openai.RateLimitError("rate limited", response=httpx2.Response(429, request=request), body=None)
+        raise openai.APITimeoutError(request=request)
+
+
+def test_rate_limit_waits_and_retries(fake_client, monkeypatch):
+    monkeypatch.setattr(openrouter, "RATE_LIMIT_WAIT_SECONDS", 0)
+    client = fake_client(RateLimitedOnce())
+    waits = []
+    record = openrouter.ask_waiting("some/model", "SMILES: CCO", {"heavy_atoms": "number"}, on_wait=waits.append)
+    assert record["finish_reason"] == "timeout"  # the retry got through and was saved
+    assert waits == [1]
+    assert client.calls == 2
+
+
+def test_rate_limit_gives_up_after_the_last_retry(fake_client, monkeypatch, tmp_path):
+    monkeypatch.setattr(openrouter, "RATE_LIMIT_WAIT_SECONDS", 0)
+    client = fake_client(RateLimited())
+    waits = []
+    with pytest.raises(openai.RateLimitError):
+        openrouter.ask_waiting("some/model", "SMILES: CCO", {"heavy_atoms": "number"}, on_wait=waits.append)
+    assert waits == [1, 2, 3]
+    assert client.calls == 1 + openrouter.RATE_LIMIT_RETRIES
+    assert list(tmp_path.glob("*.json")) == []  # nothing saved
+
+
+def test_other_errors_are_not_retried(fake_client, monkeypatch):
+    """E.g. a model that is not available (error 403) fails at once, without waiting."""
+
+    class Forbidden(AlwaysTimesOut):
+        def create(self, **kwargs):
+            self.calls += 1
+            request = httpx2.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+            raise openai.PermissionDeniedError("forbidden", response=httpx2.Response(403, request=request), body=None)
+
+    monkeypatch.setattr(openrouter, "RATE_LIMIT_WAIT_SECONDS", 0)
+    client = fake_client(Forbidden())
+    with pytest.raises(openai.PermissionDeniedError):
+        openrouter.ask_waiting("some/model", "SMILES: CCO", {"heavy_atoms": "number"})
+    assert client.calls == 1
+
+
+def test_forget_timeout_deletes_only_a_saved_timeout(fake_client, tmp_path):
+    fake_client(AlwaysTimesOut())
+    fields = {"heavy_atoms": "number"}
+    openrouter.ask("some/model", "SMILES: CCO", fields)  # saved as a timeout
+    assert openrouter.forget_timeout("some/model", "SMILES: CCO", fields) is True
+    assert list(tmp_path.glob("*.json")) == []
+    assert openrouter.forget_timeout("some/model", "SMILES: CCO", fields) is False  # nothing left to delete
+
+
+def test_forget_timeout_keeps_a_real_answer(tmp_path, monkeypatch):
+    monkeypatch.setattr(openrouter.paths, "RESPONSES", tmp_path)
+    fields = {"heavy_atoms": "number"}
+    path = openrouter.response_path("some/model", "SMILES: CCO", fields, 1, 1.0)
+    path.write_text('{"finish_reason": "stop", "response": "{\\"heavy_atoms\\": 3}"}')
+    assert openrouter.forget_timeout("some/model", "SMILES: CCO", fields) is False
+    assert path.exists()

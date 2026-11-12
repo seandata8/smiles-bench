@@ -1,0 +1,5 @@
+# Gemma 4 12B with an 8,192-token context window instead of Ollama's default 4,096, so a local model gets the same
+# output budget as the cloud models (a ~120-token prompt plus MAX_TOKENS = 8,000 in src/smiley_bench/openrouter.py).
+# Make it with: ollama create gemma4-8k -f model_lists/gemma4-8k.Modelfile
+FROM gemma4:12b
+PARAMETER num_ctx 8192

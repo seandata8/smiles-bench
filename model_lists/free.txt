@@ -3,8 +3,8 @@
 baidu/ernie-5.5-flash-preview:free
 cohere/north-mini-code:free
 dots-studio/dots-3-note-preview:free
-google/gemma-4-26b-a4b-it:free
-google/gemma-4-31b-it:free
+# google/gemma-4-26b-a4b-it:free  (off: almost always rate-limited, 429; the local gemma4:12b covers Gemma)
+# google/gemma-4-31b-it:free  (off: almost always rate-limited, 429; the local gemma4:12b covers Gemma)
 liquid/lfm-2.5-2.6b:free
 liquid/lfm-3-1.7b:free
 nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
