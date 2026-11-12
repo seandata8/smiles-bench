@@ -169,7 +169,8 @@ def test_ring_count(smiles, expected):
         ("CS(=O)c1ccccc1", 1),  # methyl phenyl sulfoxide: a chiral sulfur
         ("CCP(C)c1ccccc1", 1),  # ethylmethylphenylphosphine: a chiral phosphorus
         ("CCN(C)Cc1ccccc1", 0),  # an open-chain amine inverts, so it is not a stereocentre
-        ("Cc1ccc2c(c1)CN1Cc3cc(C)ccc3N(C2)C1", 1),  # Tröger's base has 2 (both N), but RDKit finds 1: count by hand
+        # Tröger's base (PubChem CID 196981) has 2 nitrogen stereocentres, but RDKit finds none: count by hand
+        ("CC1=CC2=C(C=C1)N3CC4=C(C=CC(=C4)C)N(C2)C3", 0),
     ],
 )
 def test_chiral_atoms_rdkit(smiles, expected):

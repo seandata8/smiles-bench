@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vancomycin in 3D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Made by src/smiley_bench/viewer.py. Layout: the rotatable model on the left, the stereo readout on the right; stacks on phones. */
+:root {
+  --bg: #eef1f5; --panel: #ffffff; --fg: #18202c; --muted: #5a6475; --line: #d5dbe4; --bond: #6b7383;
+  --el-C: #3b4250; --el-N: #2350c8; --el-O: #d1352b; --el-S: #c29a00; --el-P: #d9730d; --el-F: #3a9d4f;
+  --el-Cl: #2f8f3a; --el-Br: #8a3b1f; --el-I: #6a2d8f; --el-H: #b9c0cc;
+  --lone: rgba(124, 58, 237, 0.30); --lone-edge: #7c3aed; --accent: #c2410c; --warn: #a16207;
+  --font-text: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12161d; --panel: #1a1f28; --fg: #e6e9ef; --muted: #98a2b3; --line: #2c3340; --bond: #8e97a8;
+  --el-C: #c4cad6; --el-N: #6f95ff; --el-O: #ff6b5e; --el-S: #f2c94c; --el-P: #ff9d4d; --el-F: #6fd08a;
+  --el-Cl: #5fd07a; --el-Br: #d27a52; --el-I: #b07ad6; --el-H: #6c7483;
+  --lone: rgba(167, 139, 250, 0.28); --lone-edge: #a78bfa; --accent: #fb923c; --warn: #facc15; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12161d; --panel: #1a1f28; --fg: #e6e9ef; --muted: #98a2b3; --line: #2c3340; --bond: #8e97a8;
+  --el-C: #c4cad6; --el-N: #6f95ff; --el-O: #ff6b5e; --el-S: #f2c94c; --el-P: #ff9d4d; --el-F: #6fd08a;
+  --el-Cl: #5fd07a; --el-Br: #d27a52; --el-I: #b07ad6; --el-H: #6c7483;
+  --lone: rgba(167, 139, 250, 0.28); --lone-edge: #a78bfa; --accent: #fb923c; --warn: #facc15; color-scheme: dark }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-text); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 28px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 20px; }
+header h1 { font-size: 1.7rem; font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+header p { margin: 4px 0 0; color: var(--muted); }
+.mono { font-family: var(--font-mono); font-size: 0.85rem; }
+.bench { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.viewer { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: grid; }
+canvas { width: 100%; aspect-ratio: 4 / 3; max-width: 100%; touch-action: none; cursor: grab; display: block; }
+canvas:active { cursor: grabbing; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border-top: 1px solid var(--line); align-items: center; }
+button { font: inherit; font-size: 0.9rem; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); cursor: pointer; }
+button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+label.toggle { display: inline-flex; gap: 6px; align-items: center; font-size: 0.9rem; color: var(--muted); }
+.hint { font-size: 0.82rem; color: var(--muted); padding: 0 12px 12px; margin: 0; }
+aside { display: grid; gap: 16px; min-width: 0; }
+section.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; font-weight: 600; }
+.verdict { font-size: 1.05rem; }
+.verdict strong { color: var(--accent); }
+.check { font-size: 0.9rem; color: var(--muted); }
+.check.warn { color: var(--warn); }
+ol.prio { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 6px; }
+ol.prio li { display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: baseline; }
+.badge { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--panel); font-size: 0.8rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.badge.low { background: var(--lone-edge); }
+.smiles { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+code { font-family: var(--font-mono); font-size: 0.82rem; overflow-x: auto; white-space: nowrap; display: block; padding: 6px 8px; background: var(--bg); border-radius: 6px; min-width: 0; }
+p.note { margin: 0; color: var(--muted); font-size: 0.88rem; max-width: 65ch; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="name"></h1>
+    <p><span class="mono" id="formula"></span> · <span id="centreCount"></span></p>
+  </header>
+
+  <div class="bench">
+    <div class="viewer">
+      <canvas id="model" aria-label="Rotatable 3D model"></canvas>
+      <div class="controls" id="controls">
+        <button id="free" type="button" aria-pressed="true">Free rotation</button>
+        <label class="toggle"><input id="showH" type="checkbox" checked> Hydrogens</label>
+        <label class="toggle"><input id="showLP" type="checkbox" checked> Lone pairs</label>
+      </div>
+      <p class="hint">Drag to rotate, scroll or pinch to zoom. "Look at" turns the model so that atom's lowest-priority group points straight away from you, the way you assign R or S.</p>
+    </div>
+
+    <aside>
+      <section class="card" aria-live="polite">
+        <h2 id="centreName">Pick a stereocentre</h2>
+        <div class="verdict" id="verdict">Choose one of the "Look at" buttons to read its configuration from the model.</div>
+        <ol class="prio" id="prio"></ol>
+        <div class="check" id="check"></div>
+      </section>
+
+      <section class="card">
+        <h2>SMILES</h2>
+        <div class="smiles"><code id="smiles"></code><button type="button" id="copy">Copy</button></div>
+      </section>
+
+      <section class="card">
+        <h2>How this model was made</h2>
+        <p class="note">RDKit built the 3D structure and minimised it with the MMFF94 force field, keeping every stereo mark in the SMILES (where RDKit drops a mark, the mirror image that matches it is used). Atoms are named by element and their position in the SMILES. Priorities use the first CIP rule only (atomic numbers, sphere by sphere), so check centres that need later rules. The R or S above is read from the model as it appears on screen.</p>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+const DATA = {"name": "Vancomycin", "smiles": "C[C@H]1[C@H]([C@@](C[C@@H](O1)O[C@@H]2[C@H]([C@@H]([C@H](O[C@H]2Oc3c4cc5cc3Oc6ccc(cc6Cl)[C@H]([C@H](C(=O)N[C@H](C(=O)N[C@H]5C(=O)N[C@@H]7c8ccc(c(c8)-c9c(cc(cc9O)O)[C@H](NC(=O)[C@H]([C@@H](c1ccc(c(c1)Cl)O4)O)NC7=O)C(=O)O)O)CC(=O)N)NC(=O)[C@@H](CC(C)C)NC)O)CO)O)O)(C)N)O", "formula": "C66H75Cl2N9O24", "atoms": [{"el": "C", "xyz": [-4.52, 6.75, -0.405]}, {"el": "C", "xyz": [-3.314, 7.626, -0.718]}, {"el": "C", "xyz": [-3.687, 8.984, -1.364]}, {"el": "C", "xyz": [-2.702, 10.119, -0.941]}, {"el": "C", "xyz": [-1.307, 9.52, -0.739]}, {"el": "C", "xyz": [-1.297, 8.39, 0.299]}, {"el": "O", "xyz": [-2.592, 7.825, 0.504]}, {"el": "O", "xyz": [-0.355, 7.407, -0.129]}, {"el": "C", "xyz": [-0.072, 6.419, 0.88]}, {"el": "C", "xyz": [1.022, 6.914, 1.847]}, {"el": "C", "xyz": [2.443, 6.464, 1.443]}, {"el": "C", "xyz": [2.527, 6.259, -0.08]}, {"el": "O", "xyz": [1.599, 5.294, -0.581]}, {"el": "C", "xyz": [0.394, 5.128, 0.18]}, {"el": "O", "xyz": [0.573, 4.123, 1.195]}, {"el": "C", "xyz": [0.37, 2.861, 0.698]}, {"el": "C", "xyz": [-0.926, 2.346, 0.554]}, {"el": "C", "xyz": [-1.099, 0.999, 0.173]}, {"el": "C", "xyz": [0.001, 0.169, -0.092]}, {"el": "C", "xyz": [1.279, 0.744, -0.028]}, {"el": "C", "xyz": [1.477, 2.049, 0.443]}, {"el": "O", "xyz": [2.739, 2.562, 0.7]}, {"el": "C", "xyz": [3.71, 1.631, 1.003]}, {"el": "C", "xyz": [4.675, 1.38, 0.025]}, {"el": "C", "xyz": [5.58, 0.332, 0.2]}, {"el": "C", "xyz": [5.536, -0.472, 1.353]}, {"el": "C", "xyz": [4.614, -0.151, 2.363]}, {"el": "C", "xyz": [3.713, 0.904, 2.199]}, {"el": "Cl", "xyz": [2.601, 1.236, 3.476]}, {"el": "C", "xyz": [6.493, -1.641, 1.483]}, {"el": "C", "xyz": [6.251, -2.771, 0.451]}, {"el": "C", "xyz": [5.007, -3.638, 0.747]}, {"el": "O", "xyz": [5.118, -4.792, 1.175]}, {"el": "N", "xyz": [3.776, -3.087, 0.46]}, {"el": "C", "xyz": [2.564, -3.929, 0.434]}, {"el": "C", "xyz": [1.483, -3.195, -0.385]}, {"el": "O", "xyz": [1.178, -3.545, -1.523]}, {"el": "N", "xyz": [0.975, -2.053, 0.188]}, {"el": "C", "xyz": [-0.133, -1.315, -0.431]}, {"el": "C", "xyz": [-1.406, -1.962, 0.172]}, {"el": "O", "xyz": [-1.581, -2.032, 1.39]}, {"el": "N", "xyz": [-2.311, -2.476, -0.736]}, {"el": "C", "xyz": [-3.66, -2.787, -0.289]}, {"el": "C", "xyz": [-4.297, -3.995, -0.957]}, {"el": "C", "xyz": [-4.069, -4.35, -2.292]}, {"el": "C", "xyz": [-4.886, -5.296, -2.921]}, {"el": "C", "xyz": [-5.963, -5.861, -2.235]}, {"el": "C", "xyz": [-6.211, -5.535, -0.898]}, {"el": "C", "xyz": [-5.33, -4.648, -0.262]}, {"el": "C", "xyz": [-7.376, -6.027, -0.14]}, {"el": "C", "xyz": [-8.579, -5.268, -0.049]}, {"el": "C", "xyz": [-9.605, -5.745, 0.794]}, {"el": "C", "xyz": [-9.468, -6.947, 1.484]}, {"el": "C", "xyz": [-8.315, -7.707, 1.38]}, {"el": "C", "xyz": [-7.275, -7.238, 0.58]}, {"el": "O", "xyz": [-6.107, -7.954, 0.513]}, {"el": "O", "xyz": [-10.512, -7.339, 2.27]}, {"el": "C", "xyz": [-8.757, -3.958, -0.826]}, {"el": "N", "xyz": [-8.01, -2.868, -0.181]}, {"el": "C", "xyz": [-7.753, -1.701, -0.888]}, {"el": "O", "xyz": [-8.209, -1.506, -2.012]}, {"el": "C", "xyz": [-6.871, -0.672, -0.143]}, {"el": "C", "xyz": [-6.777, 0.722, -0.862]}, {"el": "C", "xyz": [-5.62, 1.599, -0.379]}, {"el": "C", "xyz": [-5.291, 1.694, 0.984]}, {"el": "C", "xyz": [-4.095, 2.295, 1.385]}, {"el": "C", "xyz": [-3.228, 2.82, 0.425]}, {"el": "C", "xyz": [-3.616, 2.886, -0.914]}, {"el": "C", "xyz": [-4.805, 2.277, -1.308]}, {"el": "Cl", "xyz": [-2.633, 3.637, -2.117]}, {"el": "O", "xyz": [-1.977, 3.209, 0.844]}, {"el": "O", "xyz": [-6.727, 0.633, -2.292]}, {"el": "N", "xyz": [-5.628, -1.38, 0.226]}, {"el": "C", "xyz": [-4.558, -1.561, -0.633]}, {"el": "O", "xyz": [-4.344, -0.883, -1.634]}, {"el": "C", "xyz": [-10.226, -3.514, -0.963]}, {"el": "O", "xyz": [-10.817, -2.735, -0.225]}, {"el": "O", "xyz": [-10.878, -4.111, -1.983]}, {"el": "O", "xyz": [-6.813, -6.716, -2.882]}, {"el": "C", "xyz": [2.077, -4.307, 1.835]}, {"el": "C", "xyz": [1.973, -5.807, 1.953]}, {"el": "O", "xyz": [0.916, -6.415, 1.834]}, {"el": "N", "xyz": [3.145, -6.458, 2.189]}, {"el": "N", "xyz": [7.392, -3.7, 0.419]}, {"el": "C", "xyz": [8.562, -3.367, -0.232]}, {"el": "O", "xyz": [8.73, -2.253, -0.721]}, {"el": "C", "xyz": [9.61, -4.506, -0.264]}, {"el": "C", "xyz": [10.815, -4.13, -1.149]}, {"el": "C", "xyz": [11.904, -5.216, -1.276]}, {"el": "C", "xyz": [13.07, -4.68, -2.112]}, {"el": "C", "xyz": [11.372, -6.506, -1.901]}, {"el": "N", "xyz": [9.962, -4.922, 1.115]}, {"el": "C", "xyz": [10.667, -3.902, 1.882]}, {"el": "O", "xyz": [6.483, -2.172, 2.813]}, {"el": "C", "xyz": [3.926, 5.805, -0.528]}, {"el": "O", "xyz": [4.937, 6.715, -0.103]}, {"el": "O", "xyz": [3.373, 7.451, 1.911]}, {"el": "O", "xyz": [0.727, 6.47, 3.184]}, {"el": "C", "xyz": [-2.665, 11.212, -2.019]}, {"el": "N", "xyz": [-3.199, 10.77, 0.301]}, {"el": "O", "xyz": [-5.022, 9.398, -1.024]}, {"el": "H", "xyz": [-5.166, 7.215, 0.348]}, {"el": "H", "xyz": [-4.192, 5.799, 0.026]}, {"el": "H", "xyz": [-5.108, 6.543, -1.304]}, {"el": "H", "xyz": [-2.661, 7.072, -1.406]}, {"el": "H", "xyz": [-3.689, 8.85, -2.452]}, {"el": "H", "xyz": [-0.578, 10.287, -0.443]}, {"el": "H", "xyz": [-0.936, 9.138, -1.701]}, {"el": "H", "xyz": [-0.981, 8.806, 1.262]}, {"el": "H", "xyz": [-0.986, 6.185, 1.442]}, {"el": "H", "xyz": [1.004, 8.009, 1.899]}, {"el": "H", "xyz": [2.698, 5.53, 1.958]}, {"el": "H", "xyz": [2.327, 7.221, -0.571]}, {"el": "H", "xyz": [-0.376, 4.836, -0.543]}, {"el": "H", "xyz": [-2.1, 0.581, 0.103]}, {"el": "H", "xyz": [2.134, 0.131, -0.298]}, {"el": "H", "xyz": [4.69, 1.968, -0.888]}, {"el": "H", "xyz": [6.319, 0.14, -0.578]}, {"el": "H", "xyz": [4.592, -0.731, 3.285]}, {"el": "H", "xyz": [7.498, -1.223, 1.347]}, {"el": "H", "xyz": [6.142, -2.365, -0.562]}, {"el": "H", "xyz": [3.739, -2.202, -0.035]}, {"el": "H", "xyz": [2.825, -4.827, -0.143]}, {"el": "H", "xyz": [1.045, -1.942, 1.194]}, {"el": "H", "xyz": [-0.115, -1.442, -1.518]}, {"el": "H", "xyz": [-2.246, -2.145, -1.693]}, {"el": "H", "xyz": [-3.655, -2.934, 0.798]}, {"el": "H", "xyz": [-3.29, -3.865, -2.874]}, {"el": "H", "xyz": [-4.697, -5.54, -3.963]}, {"el": "H", "xyz": [-5.512, -4.408, 0.785]}, {"el": "H", "xyz": [-10.535, -5.196, 0.928]}, {"el": "H", "xyz": [-8.214, -8.636, 1.929]}, {"el": "H", "xyz": [-6.229, -8.819, 0.935]}, {"el": "H", "xyz": [-10.31, -8.206, 2.658]}, {"el": "H", "xyz": [-8.374, -4.07, -1.848]}, {"el": "H", "xyz": [-8.089, -2.808, 0.825]}, {"el": "H", "xyz": [-7.362, -0.491, 0.824]}, {"el": "H", "xyz": [-7.705, 1.267, -0.647]}, {"el": "H", "xyz": [-5.92, 1.238, 1.744]}, {"el": "H", "xyz": [-3.807, 2.292, 2.433]}, {"el": "H", "xyz": [-5.06, 2.259, -2.367]}, {"el": "H", "xyz": [-7.337, -0.077, -2.579]}, {"el": "H", "xyz": [-5.74, -2.089, 0.937]}, {"el": "H", "xyz": [-11.779, -3.725, -1.959]}, {"el": "H", "xyz": [-6.46, -6.894, -3.768]}, {"el": "H", "xyz": [1.084, -3.906, 2.068]}, {"el": "H", "xyz": [2.753, -3.944, 2.619]}, {"el": "H", "xyz": [3.121, -7.469, 2.158]}, {"el": "H", "xyz": [4.034, -6.007, 1.97]}, {"el": "H", "xyz": [7.194, -4.677, 0.623]}, {"el": "H", "xyz": [9.1, -5.355, -0.736]}, {"el": "H", "xyz": [11.273, -3.204, -0.777]}, {"el": "H", "xyz": [10.443, -3.883, -2.153]}, {"el": "H", "xyz": [12.297, -5.454, -0.28]}, {"el": "H", "xyz": [13.872, -5.423, -2.182]}, {"el": "H", "xyz": [13.493, -3.778, -1.657]}, {"el": "H", "xyz": [12.749, -4.431, -3.129]}, {"el": "H", "xyz": [10.626, -6.982, -1.257]}, {"el": "H", "xyz": [12.182, -7.229, -2.047]}, {"el": "H", "xyz": [10.911, -6.314, -2.875]}, {"el": "H", "xyz": [9.118, -5.192, 1.616]}, {"el": "H", "xyz": [11.643, -3.666, 1.45]}, {"el": "H", "xyz": [10.852, -4.282, 2.892]}, {"el": "H", "xyz": [10.083, -2.982, 1.98]}, {"el": "H", "xyz": [7.211, -2.817, 2.853]}, {"el": "H", "xyz": [3.96, 5.725, -1.62]}, {"el": "H", "xyz": [4.158, 4.816, -0.121]}, {"el": "H", "xyz": [5.77, 6.416, -0.513]}, {"el": "H", "xyz": [4.197, 7.341, 1.389]}, {"el": "H", "xyz": [0.831, 5.501, 3.205]}, {"el": "H", "xyz": [-2.318, 10.807, -2.976]}, {"el": "H", "xyz": [-3.658, 11.647, -2.185]}, {"el": "H", "xyz": [-1.985, 12.026, -1.741]}, {"el": "H", "xyz": [-2.535, 11.484, 0.606]}, {"el": "H", "xyz": [-3.228, 10.074, 1.054]}, {"el": "H", "xyz": [-4.897, 10.1, -0.349]}], "bonds": [[0, 1, 1], [1, 2, 1], [2, 3, 1], [3, 4, 1], [4, 5, 1], [5, 6, 1], [5, 7, 1], [7, 8, 1], [8, 9, 1], [9, 10, 1], [10, 11, 1], [11, 12, 1], [12, 13, 1], [13, 14, 1], [14, 15, 1], [15, 16, 1], [16, 17, 2], [17, 18, 1], [18, 19, 2], [19, 20, 1], [20, 21, 1], [21, 22, 1], [22, 23, 1], [23, 24, 2], [24, 25, 1], [25, 26, 2], [26, 27, 1], [27, 28, 1], [25, 29, 1], [29, 30, 1], [30, 31, 1], [31, 32, 2], [31, 33, 1], [33, 34, 1], [34, 35, 1], [35, 36, 2], [35, 37, 1], [37, 38, 1], [38, 39, 1], [39, 40, 2], [39, 41, 1], [41, 42, 1], [42, 43, 1], [43, 44, 1], [44, 45, 2], [45, 46, 1], [46, 47, 2], [47, 48, 1], [47, 49, 1], [49, 50, 1], [50, 51, 2], [51, 52, 1], [52, 53, 2], [53, 54, 1], [54, 55, 1], [52, 56, 1], [50, 57, 1], [57, 58, 1], [58, 59, 1], [59, 60, 2], [59, 61, 1], [61, 62, 1], [62, 63, 1], [63, 64, 1], [64, 65, 2], [65, 66, 1], [66, 67, 2], [67, 68, 1], [67, 69, 1], [66, 70, 1], [62, 71, 1], [61, 72, 1], [72, 73, 1], [73, 74, 2], [57, 75, 1], [75, 76, 2], [75, 77, 1], [46, 78, 1], [34, 79, 1], [79, 80, 1], [80, 81, 2], [80, 82, 1], [30, 83, 1], [83, 84, 1], [84, 85, 2], [84, 86, 1], [86, 87, 1], [87, 88, 1], [88, 89, 1], [88, 90, 1], [86, 91, 1], [91, 92, 1], [29, 93, 1], [11, 94, 1], [94, 95, 1], [10, 96, 1], [9, 97, 1], [3, 98, 1], [3, 99, 1], [2, 100, 1], [6, 1, 1], [68, 63, 2], [13, 8, 1], [20, 15, 2], [70, 16, 1], [38, 18, 1], [27, 22, 2], [73, 42, 1], [48, 43, 2], [54, 49, 2], [0, 101, 1], [0, 102, 1], [0, 103, 1], [1, 104, 1], [2, 105, 1], [4, 106, 1], [4, 107, 1], [5, 108, 1], [8, 109, 1], [9, 110, 1], [10, 111, 1], [11, 112, 1], [13, 113, 1], [17, 114, 1], [19, 115, 1], [23, 116, 1], [24, 117, 1], [26, 118, 1], [29, 119, 1], [30, 120, 1], [33, 121, 1], [34, 122, 1], [37, 123, 1], [38, 124, 1], [41, 125, 1], [42, 126, 1], [44, 127, 1], [45, 128, 1], [48, 129, 1], [51, 130, 1], [53, 131, 1], [55, 132, 1], [56, 133, 1], [57, 134, 1], [58, 135, 1], [61, 136, 1], [62, 137, 1], [64, 138, 1], [65, 139, 1], [68, 140, 1], [71, 141, 1], [72, 142, 1], [77, 143, 1], [78, 144, 1], [79, 145, 1], [79, 146, 1], [82, 147, 1], [82, 148, 1], [83, 149, 1], [86, 150, 1], [87, 151, 1], [87, 152, 1], [88, 153, 1], [89, 154, 1], [89, 155, 1], [89, 156, 1], [90, 157, 1], [90, 158, 1], [90, 159, 1], [91, 160, 1], [92, 161, 1], [92, 162, 1], [92, 163, 1], [93, 164, 1], [94, 165, 1], [94, 166, 1], [95, 167, 1], [96, 168, 1], [97, 169, 1], [98, 170, 1], [98, 171, 1], [98, 172, 1], [99, 173, 1], [99, 174, 1], [100, 175, 1]], "centres": [{"atom": 1, "name": "C2", "groups": [6, 2, 0], "group_names": ["O7", "C3", "C1"], "fourth": {"kind": "H", "atom": 104, "xyz": [-2.661, 7.072, -1.406]}, "label": "S", "rdkit": "S", "tie": false}, {"atom": 2, "name": "C3", "groups": [100, 1, 3], "group_names": ["O101", "C2", "C4"], "fourth": {"kind": "H", "atom": 105, "xyz": [-3.689, 8.85, -2.452]}, "label": "S", "rdkit": "S", "tie": false}, {"atom": 3, "name": "C4", "groups": [99, 2, 4], "group_names": ["N100", "C3", "C5"], "fourth": {"kind": "atom", "atom": 98, "xyz": [-2.665, 11.212, -2.019]}, "label": "S", "rdkit": "S", "tie": false}, {"atom": 5, "name": "C6", "groups": [7, 6, 4], "group_names": ["O8", "O7", "C5"], "fourth": {"kind": "H", "atom": 108, "xyz": [-0.981, 8.806, 1.262]}, "label": "S", "rdkit": "S", "tie": false}, {"atom": 8, "name": "C9", "groups": [7, 13, 9], "group_names": ["O8", "C14", "C10"], "fourth": {"kind": "H", "atom": 109, "xyz": [-0.986, 6.185, 1.442]}, "label": "R", "rdkit": "R", "tie": false}, {"atom": 9, "name": "C10", "groups": [97, 8, 10], "group_names": ["O98", "C9", "C11"], "fourth": {"kind": "H", "atom": 110, "xyz": [1.004, 8.009, 1.899]}, "label": "S", "rdkit": "S", "tie": false}, {"atom": 10, "name": "C11", "groups": [96, 11, 9], "group_names": ["O97", "C12", "C10"], "fourth": {"kind": "H", "atom": 111, "xyz": [2.698, 5.53, 1.958]}, "label": "S", "rdkit": "S", "tie": false}, {"atom": 11, "name": "C12", "groups": [12, 10, 94], "group_names": ["O13", "C11", "C95"], "fourth": {"kind": "H", "atom": 112, "xyz": [2.327, 7.221, -0.571]}, "label": "R", "rdkit": "R", "tie": false}, {"atom": 13, "name": "C14", "groups": [14, 12, 8], "group_names": ["O15", "O13", "C9"], "fourth": {"kind": "H", "atom": 113, "xyz": [-0.376, 4.836, -0.543]}, "label": "S", "rdkit": "S", "tie": false}, {"atom": 29, "name": "C30", "groups": [93, 30, 25], "group_names": ["O94", "C31", "C26"], "fourth": {"kind": "H", "atom": 119, "xyz": [7.498, -1.223, 1.347]}, "label": "R", "rdkit": "R", "tie": false}, {"atom": 30, "name": "C31", "groups": [83, 31, 29], "group_names": ["N84", "C32", "C30"], "fourth": {"kind": "H", "atom": 120, "xyz": [6.142, -2.365, -0.562]}, "label": "R", "rdkit": "R", "tie": false}, {"atom": 34, "name": "C35", "groups": [33, 35, 79], "group_names": ["N34", "C36", "C80"], "fourth": {"kind": "H", "atom": 122, "xyz": [2.825, -4.827, -0.143]}, "label": "S", "rdkit": "S", "tie": false}, {"atom": 38, "name": "C39", "groups": [37, 39, 18], "group_names": ["N38", "C40", "C19"], "fourth": {"kind": "H", "atom": 124, "xyz": [-0.115, -1.442, -1.518]}, "label": "R", "rdkit": "R", "tie": false}, {"atom": 42, "name": "C43", "groups": [41, 73, 43], "group_names": ["N42", "C74", "C44"], "fourth": {"kind": "H", "atom": 126, "xyz": [-3.655, -2.934, 0.798]}, "label": "R", "rdkit": "R", "tie": false}, {"atom": 57, "name": "C58", "groups": [58, 75, 50], "group_names": ["N59", "C76", "C51"], "fourth": {"kind": "H", "atom": 134, "xyz": [-8.374, -4.07, -1.848]}, "label": "S", "rdkit": "S", "tie": false}, {"atom": 61, "name": "C62", "groups": [72, 59, 62], "group_names": ["N73", "C60", "C63"], "fourth": {"kind": "H", "atom": 136, "xyz": [-7.362, -0.491, 0.824]}, "label": "S", "rdkit": "S", "tie": false}, {"atom": 62, "name": "C63", "groups": [71, 61, 63], "group_names": ["O72", "C62", "C64"], "fourth": {"kind": "H", "atom": 137, "xyz": [-7.705, 1.267, -0.647]}, "label": "R", "rdkit": "R", "tie": false}, {"atom": 86, "name": "C87", "groups": [91, 84, 87], "group_names": ["N92", "C85", "C88"], "fourth": {"kind": "H", "atom": 150, "xyz": [9.1, -5.355, -0.736]}, "label": "R", "rdkit": "R", "tie": false}]};
+const canvas = document.getElementById("model");
+const ctx = canvas.getContext("2d");
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+document.getElementById("name").textContent = DATA.name;
+document.getElementById("formula").textContent = DATA.formula;
+document.getElementById("smiles").textContent = DATA.smiles;
+document.getElementById("centreCount").textContent = DATA.centres.length === 1 ? "1 marked stereocentre" : `${DATA.centres.length} marked stereocentres`;
+
+// One "Look at" button per marked centre, before the toggles.
+const controls = document.getElementById("controls"), freeButton = document.getElementById("free");
+DATA.centres.forEach((c, k) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.id = `look${k}`; b.textContent = `Look at ${c.name}`; b.setAttribute("aria-pressed", "false");
+  b.addEventListener("click", () => lookAt(k));
+  controls.insertBefore(b, freeButton);
+});
+
+// Rotation as a 3x3 matrix (row-major). Screen: x right, y up, z towards the viewer.
+let R = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+let zoom = 1, focus = null, centre = [0, 0, 0];
+const mul = (a, b) => { const r = []; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) r.push(a[3*i]*b[j] + a[3*i+1]*b[3+j] + a[3*i+2]*b[6+j]); return r; };
+const apply = (m, v) => [m[0]*v[0]+m[1]*v[1]+m[2]*v[2], m[3]*v[0]+m[4]*v[1]+m[5]*v[2], m[6]*v[0]+m[7]*v[1]+m[8]*v[2]];
+const sub = (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+const norm = v => { const l = Math.hypot(...v); return [v[0]/l, v[1]/l, v[2]/l]; };
+const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+function axisAngle(axis, angle) {
+  const [x, y, z] = norm(axis), c = Math.cos(angle), s = Math.sin(angle), t = 1 - c;
+  return [t*x*x+c, t*x*y-s*z, t*x*z+s*y, t*x*y+s*z, t*y*y+c, t*y*z-s*x, t*x*z-s*y, t*y*z+s*x, t*z*z+c];
+}
+function rotationBetween(from, to) {
+  from = norm(from); to = norm(to);
+  const axis = cross(from, to), s = Math.hypot(...axis), c = dot(from, to);
+  if (s < 1e-9) return c > 0 ? [1,0,0,0,1,0,0,0,1] : axisAngle([1, 0, 0], Math.PI);
+  return axisAngle(axis, Math.atan2(s, c));
+}
+function blend(a, b, t) {
+  const rel = mul(b, [a[0], a[3], a[6], a[1], a[4], a[7], a[2], a[5], a[8]]);
+  const angle = Math.acos(Math.min(1, Math.max(-1, (rel[0] + rel[4] + rel[8] - 1) / 2)));
+  const axis = [rel[7] - rel[5], rel[2] - rel[6], rel[3] - rel[1]];
+  if (angle < 1e-6 || Math.hypot(...axis) < 1e-9) return b;
+  return mul(axisAngle(axis, angle * t), a);
+}
+
+function token(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function resize() {
+  const ratio = window.devicePixelRatio || 1, rect = canvas.getBoundingClientRect();
+  canvas.width = Math.round(rect.width * ratio); canvas.height = Math.round(rect.height * ratio);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0); draw();
+}
+// Fit the whole molecule in the frame at zoom 1.
+const extent = Math.max(...DATA.atoms.map(a => Math.hypot(...a.xyz))) + 1;
+function project(p) {
+  const v = apply(R, sub(p, centre)), rect = canvas.getBoundingClientRect();
+  const scale = Math.min(rect.width, rect.height) / (2 * extent) * zoom, depth = (4 * extent) / (4 * extent - v[2]);
+  return { x: rect.width / 2 + v[0] * scale * depth, y: rect.height / 2 - v[1] * scale * depth, z: v[2], s: scale * depth };
+}
+
+const RADIUS = { H: 0.2, C: 0.34, N: 0.36, O: 0.36, F: 0.34, S: 0.42, P: 0.42, Cl: 0.42, Br: 0.46, I: 0.5 };
+function draw() {
+  const rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  const showH = document.getElementById("showH").checked, showLP = document.getElementById("showLP").checked;
+  const P = DATA.atoms.map(a => project(a.xyz));
+  const items = [];
+  DATA.bonds.forEach(([i, j, order]) => {
+    if (!showH && (DATA.atoms[i].el === "H" || DATA.atoms[j].el === "H")) return;
+    items.push({ z: (P[i].z + P[j].z) / 2 - 0.01, kind: "bond", i, j, order });
+  });
+  DATA.atoms.forEach((a, i) => { if (showH || a.el !== "H") items.push({ z: P[i].z, kind: "atom", i }); });
+  if (showLP) DATA.centres.forEach((c, k) => { if (c.fourth.kind === "lone pair") items.push({ z: project(c.fourth.xyz).z, kind: "lone", k }); });
+  items.sort((a, b) => a.z - b.z);
+  const named = new Map(DATA.centres.map(c => [c.atom, c.name]));
+  for (const it of items) {
+    if (it.kind === "bond") {
+      const a = P[it.i], b = P[it.j], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
+      const offsets = it.order === 2 ? [-2.6, 2.6] : it.order === 3 ? [-4, 0, 4] : [0];
+      ctx.strokeStyle = token("--bond"); ctx.lineWidth = 2.2; ctx.lineCap = "round";
+      for (const o of offsets) { ctx.beginPath(); ctx.moveTo(a.x - dy / l * o, a.y + dx / l * o); ctx.lineTo(b.x - dy / l * o, b.y + dx / l * o); ctx.stroke(); }
+    } else if (it.kind === "atom") {
+      const a = DATA.atoms[it.i], p = P[it.i], r = (RADIUS[a.el] || 0.4) * p.s;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fillStyle = token(`--el-${a.el}`) || token("--el-C"); ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = token("--panel"); ctx.stroke();
+      if (named.has(it.i)) {
+        ctx.fillStyle = token("--fg"); ctx.font = `600 12px ${token("--font-text")}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+        ctx.fillText(named.get(it.i), p.x + r + 3, p.y);
+      }
+    } else {
+      const c = DATA.centres[it.k], n = P[c.atom], l = project(c.fourth.xyz);
+      ctx.beginPath(); ctx.ellipse((n.x + l.x) / 2 + (l.x - n.x) * 0.25, (n.y + l.y) / 2 + (l.y - n.y) * 0.25,
+        Math.max(6, Math.hypot(l.x - n.x, l.y - n.y) * 0.75), 0.28 * n.s, Math.atan2(l.y - n.y, l.x - n.x), 0, Math.PI * 2);
+      ctx.fillStyle = token("--lone"); ctx.fill(); ctx.strokeStyle = token("--lone-edge"); ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+  if (focus !== null) drawPriorities(P);
+}
+
+function drawPriorities(P) {
+  const pts = DATA.centres[focus].groups.map(i => P[i]);
+  ctx.strokeStyle = token("--accent"); ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y); ctx.stroke(); ctx.setLineDash([]);
+  pts.forEach((p, k) => {
+    ctx.beginPath(); ctx.arc(p.x, p.y - 18, 10, 0, Math.PI * 2); ctx.fillStyle = token("--accent"); ctx.fill();
+    ctx.fillStyle = token("--panel"); ctx.font = `600 12px ${token("--font-text")}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(k + 1), p.x, p.y - 17.5);
+  });
+}
+
+// R or S from what is on screen: the signed area of 1 -> 2 -> 3 (y up), valid while the lowest group points away.
+function readCentre(k) {
+  const c = DATA.centres[k];
+  const pts = c.groups.map(i => { const p = project(DATA.atoms[i].xyz); return [p.x, -p.y]; });
+  const area = (pts[1][0] - pts[0][0]) * (pts[2][1] - pts[0][1]) - (pts[2][0] - pts[0][0]) * (pts[1][1] - pts[0][1]);
+  const lowAway = apply(R, sub(c.fourth.xyz, DATA.atoms[c.atom].xyz))[2] < 0;
+  const turn = area > 0 ? "anticlockwise" : "clockwise", label = area > 0 ? "S" : "R";
+  document.getElementById("centreName").textContent = c.name;
+  document.getElementById("verdict").innerHTML = lowAway
+    ? `With the lowest-priority group pointing away, 1 → 2 → 3 runs <strong>${turn}</strong>, so ${c.name} is <strong>${label}</strong>.`
+    : `The lowest-priority group points towards you now. Press "Look at ${c.name}" to turn it away again.`;
+  const low = c.fourth.kind === "lone pair" ? "lone pair" : c.fourth.kind === "H" ? "hydrogen" : `${DATA.atoms[c.fourth.atom].el}${c.fourth.atom + 1}`;
+  document.getElementById("prio").innerHTML = c.group_names.map((g, i) => `<li><span class="badge">${i + 1}</span><span>${g}</span></li>`).join("")
+    + `<li><span class="badge low">4</span><span>${low}, pointing away from you</span></li>`;
+  const check = document.getElementById("check");
+  if (c.tie) { check.textContent = "Two groups tie on atomic numbers, so this ranking needs the later CIP rules. Check it by hand."; check.className = "check warn"; }
+  else if (c.rdkit) { const agree = c.rdkit === c.label; check.textContent = `RDKit's own CIP label: ${c.rdkit} (${agree ? "agrees" : "disagrees, so check by hand"}).`; check.className = agree ? "check" : "check warn"; }
+  else { check.textContent = "RDKit gives no label here: it does not treat this atom as a stereocentre."; check.className = "check warn"; }
+}
+
+function setPressed(id) { document.querySelectorAll("#controls button").forEach(b => b.setAttribute("aria-pressed", String(b.id === id))); }
+function lookAt(k) {
+  const c = DATA.centres[k], n = DATA.atoms[c.atom].xyz;
+  focus = k; centre = n; zoom = 1.8;
+  const target = rotationBetween(sub(c.fourth.xyz, n), [0, 0, -1]);  // lowest-priority group straight into the screen
+  const start = R, steps = reduceMotion ? 1 : 24; let step = 0;
+  const animate = () => { step++; R = step >= steps ? target : blend(start, target, step / steps); draw(); if (step < steps) requestAnimationFrame(animate); else readCentre(k); };
+  animate(); setPressed(`look${k}`);
+}
+freeButton.addEventListener("click", () => {
+  focus = null; centre = [0, 0, 0]; zoom = 1; setPressed("free");
+  document.getElementById("centreName").textContent = "Pick a stereocentre";
+  document.getElementById("verdict").textContent = 'Choose one of the "Look at" buttons to read its configuration from the model.';
+  document.getElementById("prio").innerHTML = ""; document.getElementById("check").textContent = "";
+  draw();
+});
+for (const id of ["showH", "showLP"]) document.getElementById(id).addEventListener("change", draw);
+
+const pointers = new Map();
+canvas.addEventListener("pointerdown", e => { canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]); });
+canvas.addEventListener("pointermove", e => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pointers.size === 2) {
+    const other = [...pointers.entries()].find(([id]) => id !== e.pointerId)[1];
+    const was = Math.hypot(prev[0] - other[0], prev[1] - other[1]), now = Math.hypot(e.clientX - other[0], e.clientY - other[1]);
+    if (was > 0) zoom = Math.min(5, Math.max(0.4, zoom * now / was)); draw(); return;
+  }
+  const dx = e.clientX - prev[0], dy = e.clientY - prev[1];
+  if (dx === 0 && dy === 0) return;
+  R = mul(axisAngle([dy, dx, 0], Math.hypot(dx, dy) * 0.01), R);
+  if (focus !== null) readCentre(focus);
+  draw();
+});
+const release = e => pointers.delete(e.pointerId);
+canvas.addEventListener("pointerup", release); canvas.addEventListener("pointercancel", release);
+canvas.addEventListener("wheel", e => { e.preventDefault(); zoom = Math.min(5, Math.max(0.4, zoom * Math.exp(-e.deltaY * 0.001))); draw(); }, { passive: false });
+
+document.getElementById("copy").addEventListener("click", () => {
+  const btn = document.getElementById("copy"), code = document.getElementById("smiles");
+  navigator.clipboard.writeText(code.textContent).then(() => { btn.textContent = "Copied"; setTimeout(() => (btn.textContent = "Copy"), 1500); })
+    .catch(() => { const range = document.createRange(); range.selectNodeContents(code); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range); });
+});
+
+R = mul(axisAngle([1, 0, 0], -0.5), axisAngle([0, 1, 0], 0.6));
+new ResizeObserver(resize).observe(canvas);
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+resize();
+</script>
+</body>
+</html>
