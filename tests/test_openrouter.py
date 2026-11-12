@@ -160,3 +160,20 @@ def test_forget_timeout_keeps_a_real_answer(tmp_path, monkeypatch):
     path.write_text('{"finish_reason": "stop", "response": "{\\"heavy_atoms\\": 3}"}')
     assert openrouter.forget_timeout("some/model", "SMILES: CCO", fields) is False
     assert path.exists()
+
+
+class ReplyWithProviderError(AlwaysTimesOut):
+    """Returns a reply whose finish_reason is "error": a provider failure, not an answer."""
+
+    def create(self, **kwargs):
+        self.calls += 1
+        message = type("Message", (), {"content": ""})()
+        choice = type("Choice", (), {"message": message, "finish_reason": "error"})()
+        return type("Response", (), {"choices": [choice], "usage": None, "model": "some/model"})()
+
+
+def test_provider_error_inside_a_reply_is_raised_and_not_saved(fake_client, tmp_path):
+    fake_client(ReplyWithProviderError())
+    with pytest.raises(RuntimeError, match="Provider error"):
+        openrouter.ask("some/model", "SMILES: CCO", {"heavy_atoms": "number"})
+    assert list(tmp_path.glob("*.json")) == []
