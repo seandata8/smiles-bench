@@ -2,9 +2,9 @@
 # Purpose: List candidate SMILES forms for each molecule, to choose smiles_2 and smiles_3 (or a new smiles_1) by hand
 # Author: Sean Murphy
 # Date: 12 November 2026
-# Pre-requisites: data/01-raw_data/molecules2.csv with at least smiles_1 filled in for each molecule
+# Pre-requisites: data/01-raw_data/molecule_tests.csv with at least smiles_1 filled in for each molecule
 # A helper, not part of the numbered pipeline: run it after adding molecules, then copy the forms you want into
-# molecules2.csv. Writes other/notes/smiles_options.csv, one row per candidate:
+# molecule_tests.csv. Writes other/notes/smiles_options.csv, one row per candidate:
 # - as written: smiles_1, as you wrote it
 # - canonical: RDKit's canonical SMILES, aromatic (c1ccccc1) and Kekulé (C1=CC=CC=C1)
 # - no stereo marks: the canonical SMILES with @ and / \ removed (only if smiles_1 has stereo marks)
