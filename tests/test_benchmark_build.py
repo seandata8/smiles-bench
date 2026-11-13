@@ -271,6 +271,16 @@ def test_kind_comes_from_how_many_tests_a_molecule_is_in():
     assert molecule_kinds(dropped_once)["big"] == "special"
 
 
+def test_np_status_must_match_being_in_all_five_tests():
+    """pilot-np/final-np only for molecules asked in all five tests, and those must have one of them."""
+    five = ["mass", "rings", "chirality", "atoms", "bonds"]
+    with pytest.raises(ValueError, match="should be pilot-np"):
+        build(molecules(*[(test, "pilot", "big", PHENYLETHANOL, 1, True) for test in five]))
+    with pytest.raises(ValueError, match="is for molecules asked in all five tests"):
+        build(molecules(("rings", "pilot-np", "cage", TOLUENE, None, None)))
+    assert build(molecules(*[(test, "pilot-np", "big", PHENYLETHANOL, 1, True) for test in five])).height == 30
+
+
 def test_molecule_id_comes_from_the_structure():
     """The same structure gets the same id however its SMILES is written, with or without stereo marks."""
     assert molecule_id("atoms", molecule(TOLUENE)) == molecule_id("atoms", molecule("c1ccccc1C"))
