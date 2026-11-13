@@ -106,7 +106,9 @@ def isotope_mass(mol):
     pattern = isotope_pattern(counts)
     tallest = max(abundance for abundance, _ in pattern.values())
     return sorted(
-        round(mass - ELECTRON_MASS, 1) for abundance, mass in pattern.values() if abundance >= PEAK_HEIGHT_ALLOWANCE * tallest
+        round(mass - ELECTRON_MASS, 1)
+        for abundance, mass in pattern.values()
+        if abundance >= PEAK_HEIGHT_ALLOWANCE * tallest
     )
 
 

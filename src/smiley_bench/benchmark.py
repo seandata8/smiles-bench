@@ -12,6 +12,10 @@
 # chooses which to ask by status. The molecules with status final and sanity-check are also written to their own
 # files (GENERATED_LISTS), never edited by hand, so the final benchmark can be read on its own.
 #
+# Each molecule's kind (plan.md, decision 14) is worked out from the list, not typed: a molecule asked in all five
+# tests (by name) is a natural product derivative, one asked in fewer is a special test of one skill, and the
+# sanity-check molecule is a sanity check (it is in all five tests too, but is not scored).
+#
 # Every molecule is drawn by hand (e.g. in Ketcher) and saved as a mol file named after it: the molecule called
 # "troger-base-Me" in the list is data/01-raw_data/structures/troger-base-Me.mol. The drawing is the only source of
 # the SMILES: the build stops if any molecule has no drawing. (A molecule asked in several tests has one drawing.)
@@ -19,7 +23,9 @@
 # The three SMILES forms are of fixed kinds that depend on the test (FORM_KINDS), so accuracy can be compared by
 # kind. fill_forms() makes them from the drawing and writes them into the molecule list (never typed by hand):
 # - smiles_1: RDKit's canonical SMILES, with the stereo marks RDKit reads from the drawing's wedges
-# - smiles_2: starting from a different atom, the first of RDKit's seeded random SMILES that differs from forms 1, 3
+# - smiles_2: starting from a different atom, the first of RDKit's seeded random SMILES that differs from forms 1, 3;
+#   the seed comes from the molecule id (test and structure), so a molecule in several tests gets a different form 2
+#   in each, and renaming or redrawing a molecule does not change it
 # - smiles_3: Kekulé, or for the chirality test, canonical without stereo marks
 # The molecule's id is worked out from its structure with stereo marks removed, since the chirality forms differ in
 # them.
@@ -50,7 +56,6 @@ FORM_KINDS = {
     "chirality": ["canonical with stereo marks", "different start atom", "canonical without stereo marks"],
     "other": ["canonical", "different start atom", "Kekulé"],
 }
-RANDOM_SEED = 853
 SCHEMA = {
     "chiral_atoms": pl.Int64,
     "is_chiral": pl.Boolean,
@@ -130,10 +135,16 @@ def third_form(test, mol):
     return Chem.MolToSmiles(mol, kekuleSmiles=True)
 
 
-def second_form(mol, avoid):
-    """Form 2: the first of RDKit's seeded random SMILES (each starts from a randomly chosen atom, aromatic, with
-    any stereo marks) that is not one of `avoid`."""
-    for candidate in Chem.MolToRandomSmilesVect(mol, 50, randomSeed=RANDOM_SEED):
+def form_2_seed(test, mol):
+    """The random seed for form 2: a number made from the molecule id (test and structure) with SHA-256, so each
+    molecule and test gets its own form 2, the same on every build. (Python's hash() changes between runs.)"""
+    return int(hashlib.sha256(molecule_id(test, mol).encode()).hexdigest()[:7], 16)
+
+
+def second_form(mol, avoid, seed):
+    """Form 2: the first of RDKit's random SMILES from this seed (each starts from a randomly chosen atom, aromatic,
+    with any stereo marks) that is not one of `avoid`."""
+    for candidate in Chem.MolToRandomSmilesVect(mol, 50, randomSeed=seed):
         if candidate not in avoid:
             return candidate
     raise ValueError(f"No different SMILES found for {Chem.MolToSmiles(mol)}")
@@ -145,7 +156,7 @@ def forms_for(test, smiles):
     first = Chem.MolToSmiles(molecule(smiles))
     mol = molecule(first)
     third = third_form(test, mol)
-    return [first, second_form(mol, avoid={first, third}), third]
+    return [first, second_form(mol, avoid={first, third}, seed=form_2_seed(test, mol)), third]
 
 
 def fill_forms(path=MOLECULES):
@@ -170,6 +181,23 @@ def fill_forms(path=MOLECULES):
     if changed:
         pl.DataFrame(filled, schema=molecules.schema).write_csv(path)
     return changed
+
+
+def molecule_kinds(molecules):
+    """Each molecule's kind, by name: "sanity check" if its status is sanity-check, "natural product derivative" if
+    it is asked in all five tests, otherwise "special". Dropped rows are not counted, so a natural product derivative
+    dropped from one test becomes special in the others."""
+    kept = molecules.filter(pl.col("status") != "dropped")
+    tests_per_name = dict(kept.group_by("name").agg(pl.col("test").n_unique()).iter_rows())
+    kinds = {}
+    for name, status in molecules.select("name", "status").iter_rows():
+        if status == "sanity-check":
+            kinds[name] = "sanity check"
+        elif tests_per_name.get(name, 0) == len(TESTS):
+            kinds[name] = "natural product derivative"
+        else:
+            kinds[name] = "special"
+    return kinds
 
 
 def check_molecule(row, mol):
@@ -205,6 +233,7 @@ def build_questions(molecules, structures=STRUCTURES):
     test (it may appear in two tests)."""
     rows = []
     first_seen = {}  # molecule id: name of the molecule that first had it
+    kinds = molecule_kinds(molecules)
     for row in molecules.iter_rows(named=True):
         mol = molecule(row["smiles_1"])
         check_molecule(row, mol)
@@ -226,6 +255,7 @@ def build_questions(molecules, structures=STRUCTURES):
                         "molecule_id": this_id,
                         "test": row["test"],
                         "status": row["status"],
+                        "kind": kinds[row["name"]],
                         "name": row["name"],
                         "task": task,
                         "smiles_form": form_number,
