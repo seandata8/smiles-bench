@@ -53,3 +53,26 @@ def test_save_answers_keeps_reasoning_apart_from_the_response(monkeypatch, tmp_p
     record = json.loads(path.read_text())
     assert record["reasoning_tokens"] == 30 and "reasoning" not in record
     assert json.loads(openrouter.reasoning_path(path).read_text()) == {"reasoning": "Ethanol: C2H6O."}
+
+
+def write_response(folder, name, model, prompt, tokens_out):
+    """A saved response record with just what the cost estimate reads."""
+    folder.mkdir(parents=True, exist_ok=True)
+    record = {"model_requested": model, "prompt": prompt, "tokens_out": tokens_out}
+    (folder / f"{name}.json").write_text(json.dumps(record))
+
+
+def test_estimated_cost_uses_past_token_use(monkeypatch, tmp_path):
+    """Per prompt: the model's average on that molecule; a new molecule: its highest average; a new model: MAX_TOKENS."""
+    monkeypatch.setattr(paths, "RAW_DATA", tmp_path)
+    monkeypatch.setattr(batch, "batch_price", lambda model: (0.0, 1e-6))  # output tokens only: $1 per million
+    write_response(tmp_path / "pilot" / "responses", "a", "m/one", "big form 1", 30_000)
+    write_response(tmp_path / "pilot" / "responses", "b", "m/one", "big form 3", 10_000)
+    write_response(tmp_path / "max-run" / "responses", "c", "m/one", "small form 1", 1_000)
+    write_response(tmp_path / "pilot" / "responses", "d", "m/one", "a prompt no longer asked", 99_000)
+    write_response(tmp_path / "pilot" / "responses", "e", "m/other", "small form 1", 5_000)
+    molecule_of_prompt = {"big form 1": "big", "big form 3": "big", "small form 1": "small", "new form 1": "new"}
+    assert batch.saved_token_use("m/one", molecule_of_prompt) == {"big": 20_000, "small": 1_000}
+    rows = [{"molecule_id": "big"}, {"molecule_id": "small"}, {"molecule_id": "new"}]
+    assert batch.estimated_cost("m/one", rows, molecule_of_prompt) == (20_000 + 1_000 + 20_000) / 1e6
+    assert batch.estimated_cost("m/never-asked", rows[:1], molecule_of_prompt) == openrouter.MAX_TOKENS / 1e6

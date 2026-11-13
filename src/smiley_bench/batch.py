@@ -81,6 +81,31 @@ def cost_at_most(model, n_prompts):
     return n_prompts * (INPUT_TOKENS_AT_MOST * price_in + openrouter.MAX_TOKENS * price_out)
 
 
+def saved_token_use(model, molecule_of_prompt):
+    """The output tokens this model used on each molecule before, averaged: {molecule id: tokens}. From its saved
+    responses in every folder of data/01-raw_data/ (pilot, one-off runs, the benchmark), counting only responses to
+    prompts in the benchmark now (molecule_of_prompt: {prompt: molecule id}), and only those with a token count."""
+    used = {}
+    for path in paths.RAW_DATA.glob("**/responses/*.json"):
+        record = json.loads(path.read_text())
+        if record["model_requested"] != model or record.get("tokens_out") is None:
+            continue
+        if record["prompt"] in molecule_of_prompt:
+            used.setdefault(molecule_of_prompt[record["prompt"]], []).append(record["tokens_out"])
+    return {molecule: sum(tokens) / len(tokens) for molecule, tokens in used.items()}
+
+
+def estimated_cost(model, rows, molecule_of_prompt):
+    """What a batch of these prompts (rows of the prompts table) should cost, from the output tokens the model used
+    before (saved_token_use()): for each prompt, its average on the same molecule; for a molecule it has not answered,
+    its highest average on any molecule; for a model with no saved answers at all, MAX_TOKENS (the most it can cost).
+    Input tokens are counted as INPUT_TOKENS_AT_MOST, which is more than any prompt has."""
+    used = saved_token_use(model, molecule_of_prompt)
+    unknown = max(used.values()) if used else openrouter.MAX_TOKENS
+    price_in, price_out = batch_price(model)
+    return sum(INPUT_TOKENS_AT_MOST * price_in + used.get(row["molecule_id"], unknown) * price_out for row in rows)
+
+
 def call_api(method, path, body=None):
     """One request to OpenRouter's API, returning its JSON. An HTTP error is raised with OpenRouter's message."""
     request = urllib.request.Request(

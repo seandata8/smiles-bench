@@ -3,8 +3,8 @@
 #          tokens, cost and time; list OpenRouter's free models
 # Author: Sean Murphy
 # Date: 11 November 2026; two-question prompts, dates and local models added 12 November 2026; temperature left
-#       out for models that do not accept one, high reasoning effort for Claude, the model's dated version in each
-#       record, and the request and record shared with batch.py, 12 November 2026
+#       out for models that do not accept one, the model's dated version in each record, and the request and record
+#       shared with batch.py, 12 November 2026; every model at its own default reasoning effort, 13 November 2026
 # Pre-requisites: uv add openai dotenv; OPENROUTER_API_KEY in .env
 # Adapted from silicon.py in senate-forecast-2026.
 
@@ -44,10 +44,10 @@ ATTEMPTS = 3
 # they are asked without it, at their own default, and their records say temperature None.
 TEMPERATURE = 1.0
 
-# Claude models (names starting "anthropic/") are asked at this reasoning effort. Left unset, each would think at its
-# own default (Haiku 5.5 and Opus 5.5 medium, Sonnet 5.5 high), so they would not be compared on equal terms. Other
-# models are asked at their own defaults, and their records say reasoning_effort None.
-REASONING_EFFORT = "high"
+# No reasoning effort is sent: every model thinks at its own default, the setting its company chose (plan.md,
+# decision 15), so each is tested as it comes. The defaults differ, even within one company: Haiku 5.5 and Opus 5.5
+# medium, Sonnet 5.5 high. Records keep a reasoning_effort field, None from now on; responses saved before
+# 13 November 2026 say "high" for the Claude models.
 MODELS_URL = "https://openrouter.ai/api/v1/models"
 
 # A rate limit (error 429) is OpenRouter's or the provider's, not the model's. Free models are limited per minute, so
@@ -55,7 +55,7 @@ MODELS_URL = "https://openrouter.ai/api/v1/models"
 RATE_LIMIT_WAIT_SECONDS = 60
 RATE_LIMIT_RETRIES = 3
 
-BUDGET_USD = 10.00  # per run of a script; cached responses are free and do not count
+BUDGET_USD = 25.00  # per run of a script; cached responses are free and do not count
 spent = 0.0
 
 
@@ -111,11 +111,6 @@ def temperature_for(model):
     return TEMPERATURE
 
 
-def effort_for(model):
-    """REASONING_EFFORT for Claude models, otherwise None (the model's own default)."""
-    return REASONING_EFFORT if model.startswith("anthropic/") else None
-
-
 def model_version(model):
     """The dated version OpenRouter gives a model, e.g. "anthropic/claude-opus-5.5-20260921" (its canonical slug), so
     each record says exactly which model answered. None for local models."""
@@ -142,7 +137,7 @@ def answer_schema(answer_types):
 
 def request_body(model, prompt, answer_types):
     """What is sent with each prompt (all but the model's name), the same for one call and for a batch."""
-    temperature, effort = temperature_for(model), effort_for(model)
+    temperature = temperature_for(model)
     body = {
         "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
         "max_tokens": MAX_TOKENS,
@@ -155,8 +150,6 @@ def request_body(model, prompt, answer_types):
     }
     if temperature is not None:
         body["temperature"] = temperature
-    if effort is not None:
-        body["reasoning"] = {"effort": effort}
     return body
 
 
@@ -168,7 +161,7 @@ def new_record(model, prompt, answer_types, trial):
         "trial": trial,
         "date": datetime.date.today().isoformat(),
         "temperature": temperature_for(model),
-        "reasoning_effort": effort_for(model),
+        "reasoning_effort": None,  # the model's own default (see above); "high" for Claude before 13 November 2026
         "max_tokens": MAX_TOKENS,
         "system_prompt": SYSTEM_PROMPT,
         "prompt": prompt,
@@ -181,8 +174,6 @@ def response_path(model, prompt, answer_types, trial):
     them (even one character of the prompt) makes a new call."""
     fields = json.dumps(answer_types, sort_keys=True)
     key = f"{model}|{temperature_for(model)}|{trial}|{MAX_TOKENS}|{SYSTEM_PROMPT}|{prompt}|{fields}"
-    if effort_for(model) is not None:  # added only when set, so responses saved before it keep their file names
-        key += f"|{effort_for(model)}"
     return paths.RESPONSES / (hashlib.sha256(key.encode()).hexdigest() + ".json")
 
 
@@ -229,7 +220,7 @@ def ask(model, prompt, answer_types, trial=1):
     `answer_types` names the JSON field for each question in the prompt and its type (see properties.answer_types()).
     The record is saved to data/01-raw_data/responses/, and a saved record is returned without calling the API again.
     `trial` lets you ask the same model the same question more than once. The temperature is TEMPERATURE, or none
-    for a model that does not accept one (see temperature_for()); Claude models get REASONING_EFFORT (effort_for()).
+    for a model that does not accept one (see temperature_for()); no reasoning effort is sent (each model's default).
     The response is saved as the model wrote it; whether it is valid JSON and correct is decided later, when scoring.
     Any reasoning the model returned is saved separately, on this computer only (save_reasoning()).
     A model that times out ATTEMPTS times in a row is saved as a non-answer (response None, finish_reason "timeout").
