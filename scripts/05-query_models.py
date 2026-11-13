@@ -123,11 +123,14 @@ if args.batch:
     rows = list(prompts.iter_rows(named=True))
     molecule_of_prompt = dict(benchmark.select("prompt", "molecule_id").unique().iter_rows())
     estimate, most = 0.0, 0.0
+    new_worst_cases = {}  # model: worst case of the batch it would send (not one already submitted, which is resumed)
     for model in args.models:
         to_send = batch.unsaved(model, rows, trial)
         model_estimate = batch.estimated_cost(model, to_send, molecule_of_prompt)
         estimate += model_estimate
         most += batch.cost_at_most(model, len(to_send))
+        if to_send and not batch.id_file(model, trial).exists():
+            new_worst_cases[model] = batch.cost_at_most(model, len(to_send))
         print(
             f"  {model} ({openrouter.model_version(model)}): {len(to_send)} prompts, about ${model_estimate:.2f}; "
             f"temperature {openrouter.temperature_for(model)}, reasoning effort: the model's default"
@@ -138,6 +141,20 @@ if args.batch:
     )
     if estimate > openrouter.BUDGET_USD:
         raise SystemExit("Over the budget: nothing sent")
+    # OpenRouter refuses a batch whose worst case is more than the account's balance, so check every model before
+    # sending any, rather than leaving a run half sent.
+    if new_worst_cases:
+        available = batch.balance()
+        print(f"OpenRouter balance: ${available:.2f}")
+        refused = batch.refused_for_balance(new_worst_cases, available)
+        for model in refused:
+            fits = int(available / batch.cost_at_most(model, 1))
+            print(
+                f"  {model}: its batch could cost up to ${new_worst_cases[model]:.2f}, more than the balance; "
+                f"about {fits} prompts would fit (split it with --molecules, or add credits)"
+            )
+        if refused:
+            raise SystemExit("OpenRouter would refuse these batches: nothing sent")
 if args.dry_run:
     first = prompts.row(0, named=True)
     print(

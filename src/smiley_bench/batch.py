@@ -121,6 +121,22 @@ def call_api(method, path, body=None):
         raise RuntimeError(f"HTTP {error.code} from OpenRouter: {error.read().decode()[:500]}") from error
 
 
+def balance():
+    """Dollars left on the OpenRouter account: credits bought minus credits used (GET /credits). While a batch is
+    running, OpenRouter holds back its worst case, so this is lower until the batch finishes and the unused part of
+    the hold comes back (seen 13 November 2026: $14.11 fell to $4.02 with Haiku and Sonnet batches running)."""
+    data = call_api("GET", "/credits")["data"]
+    return data["total_credits"] - data["total_usage"]
+
+
+def refused_for_balance(worst_cases, available):
+    """The models whose new batch OpenRouter would refuse. OpenRouter accepts a batch only if the account's balance
+    covers the batch's worst case (every answer using all MAX_TOKENS), checking each batch on its own; worst_cases is
+    {model: cost_at_most() of its new batch}. Our worst case counts input tokens generously, so it is a little above
+    OpenRouter's (e.g. $19.44 against $19.24 for 60 Opus 5.5 prompts), which errs on the safe side."""
+    return [model for model, worst in worst_cases.items() if worst > available]
+
+
 def start(model, rows, trial):
     """Send one model's unsaved prompts as one batch and save its id. Returns the batch id, or None if every prompt
     already has a saved response. A batch already submitted for this model and trial is resumed, not sent again."""

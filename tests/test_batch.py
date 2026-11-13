@@ -76,3 +76,15 @@ def test_estimated_cost_uses_past_token_use(monkeypatch, tmp_path):
     rows = [{"molecule_id": "big"}, {"molecule_id": "small"}, {"molecule_id": "new"}]
     assert batch.estimated_cost("m/one", rows, molecule_of_prompt) == (20_000 + 1_000 + 20_000) / 1e6
     assert batch.estimated_cost("m/never-asked", rows[:1], molecule_of_prompt) == openrouter.MAX_TOKENS / 1e6
+
+
+def test_balance_is_credits_bought_minus_credits_used(monkeypatch):
+    monkeypatch.setattr(batch, "call_api", lambda method, path: {"data": {"total_credits": 30.0, "total_usage": 15.89}})
+    assert round(batch.balance(), 2) == 14.11
+
+
+def test_batches_over_the_balance_are_refused_before_anything_is_sent():
+    """Each batch is checked on its own against the balance, as OpenRouter does."""
+    worst = {"a/haiku": 0.48, "a/sonnet": 9.72, "a/opus": 19.44}
+    assert batch.refused_for_balance(worst, 14.11) == ["a/opus"]
+    assert batch.refused_for_balance(worst, 20.0) == []
