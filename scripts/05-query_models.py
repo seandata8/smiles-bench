@@ -126,7 +126,7 @@ if args.retry_timeouts:
 if args.batch:
     batch_ids = {model: batch.start(model, rows, trial) for model in args.models}  # all sent first, then waited for
     print(f"If this run is stopped, run the same command again with --trial {trial} to collect the answers.")
-    summary = [batch.finish(model, batch_ids[model], rows, trial) for model in args.models if batch_ids[model]]
+    summary = batch.finish_all({model: batch_id for model, batch_id in batch_ids.items() if batch_id}, rows, trial)
     with pl.Config(tbl_rows=-1, fmt_str_lengths=60):
         print(pl.DataFrame(summary) if summary else "Nothing to ask")
     raise SystemExit
