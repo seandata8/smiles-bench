@@ -59,3 +59,8 @@ coverage.xml
 Thumbs.db
 
 instructions
+
+# Models' reasoning, and whole batch replies (which include it): long, only needed for analysis, so kept on this
+# computer only. The response records themselves (responses/) are committed.
+data/01-raw_data/**/reasoning/
+data/01-raw_data/**/batches/batch_*.json

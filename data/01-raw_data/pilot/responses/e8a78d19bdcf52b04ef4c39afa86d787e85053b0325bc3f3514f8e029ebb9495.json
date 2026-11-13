@@ -19,5 +19,6 @@
   "tokens_out": 3062,
   "cost": 0.00078765,
   "seconds": null,
-  "batch_id": "batch-1794577545-PkIegGIkI2yDmAcTRWu1"
+  "batch_id": "batch-1794577545-PkIegGIkI2yDmAcTRWu1",
+  "reasoning_tokens": 3033
 }

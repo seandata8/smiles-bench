@@ -96,6 +96,8 @@ SCORED_COLUMNS = [
     "finish_reason",  # "stop" normally; "length" if it hit the token limit; "timeout" if every attempt timed out
     "tokens_in",  # per call
     "tokens_out",  # per call, including any hidden reasoning
+    "reasoning_tokens",  # per call: how many of tokens_out were reasoning (empty if not reported); the text itself is
+    #                      in the reasoning folder next to the responses, kept on this computer only
     "cost",  # per call, US dollars
     "seconds",  # per call
 ]

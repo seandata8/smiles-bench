@@ -41,6 +41,7 @@ call_schema = {
     "finish_reason": pl.String,
     "tokens_in": pl.Int64,
     "tokens_out": pl.Int64,
+    "reasoning_tokens": pl.Int64,  # not in responses saved before 13 November 2026 (unless filled in from a batch)
     "cost": pl.Float64,
     "seconds": pl.Float64,
 }

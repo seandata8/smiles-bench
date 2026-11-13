@@ -16,6 +16,8 @@
 # Each request in a batch is the same as one call (openrouter.request_body()): same prompts, MAX_TOKENS and JSON
 # schema. A batch has no time limit per answer, so there are no timeouts and each record's "seconds" is None.
 # An answer that comes back as an error is not saved, as with ask(), so running again sends it in a new batch.
+# Each answer's reasoning is saved separately, as with ask(). The whole batch file includes the reasoning too, so it is
+# also kept on this computer only (in .gitignore).
 
 import json
 import os
@@ -164,17 +166,21 @@ def save_answers(model, batch, rows, trial):
         if cost is None and tokens_in is not None and tokens_out is not None:  # from the batch price instead
             cost = tokens_in * price_in + tokens_out * price_out
         fields = answer_types(row["test"])
+        message = choices[0]["message"]
         record = openrouter.new_record(model, row["prompt"], fields, trial) | {
             "model_answered": body.get("model"),
-            "response": choices[0]["message"]["content"],
+            "response": message["content"],
             "finish_reason": choices[0].get("finish_reason"),  # "length" means the model hit MAX_TOKENS
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
+            "reasoning_tokens": openrouter.reasoning_tokens(usage.get("completion_tokens_details")),
             "cost": cost,
             "seconds": None,
             "batch_id": batch["id"],
         }
-        openrouter.save(record, openrouter.response_path(model, row["prompt"], fields, trial))
+        path = openrouter.response_path(model, row["prompt"], fields, trial)
+        openrouter.save(record, path)
+        openrouter.save_reasoning(message.get("reasoning"), path)
         counts["token_limit" if record["finish_reason"] == "length" else "answered"] += 1
     return counts
 
