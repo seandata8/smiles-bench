@@ -63,19 +63,23 @@ def write_response(folder, name, model, prompt, tokens_out):
 
 
 def test_estimated_cost_uses_past_token_use(monkeypatch, tmp_path):
-    """Per prompt: the model's average on that molecule; a new molecule: its highest average; a new model: MAX_TOKENS."""
+    """Per prompt: the model's own average on that molecule; a molecule it has not answered: the highest average of
+    any model on it; a molecule no model has answered: MAX_TOKENS."""
     monkeypatch.setattr(paths, "RAW_DATA", tmp_path)
     monkeypatch.setattr(batch, "batch_price", lambda model: (0.0, 1e-6))  # output tokens only: $1 per million
     write_response(tmp_path / "pilot" / "responses", "a", "m/one", "big form 1", 30_000)
     write_response(tmp_path / "pilot" / "responses", "b", "m/one", "big form 3", 10_000)
     write_response(tmp_path / "max-run" / "responses", "c", "m/one", "small form 1", 1_000)
     write_response(tmp_path / "pilot" / "responses", "d", "m/one", "a prompt no longer asked", 99_000)
-    write_response(tmp_path / "pilot" / "responses", "e", "m/other", "small form 1", 5_000)
-    molecule_of_prompt = {"big form 1": "big", "big form 3": "big", "small form 1": "small", "new form 1": "new"}
-    assert batch.saved_token_use("m/one", molecule_of_prompt) == {"big": 20_000, "small": 1_000}
-    rows = [{"molecule_id": "big"}, {"molecule_id": "small"}, {"molecule_id": "new"}]
-    assert batch.estimated_cost("m/one", rows, molecule_of_prompt) == (20_000 + 1_000 + 20_000) / 1e6
-    assert batch.estimated_cost("m/never-asked", rows[:1], molecule_of_prompt) == openrouter.MAX_TOKENS / 1e6
+    write_response(tmp_path / "responses", "e", "m/other", "big form 1", 40_000)
+    write_response(tmp_path / "responses", "f", "m/new", "sanity form 1", 100)
+    molecule_of_prompt = {"big form 1": "big", "big form 3": "big", "small form 1": "small", "sanity form 1": "sanity"}
+    use = batch.saved_token_use(molecule_of_prompt)
+    assert use == {"m/one": {"big": 20_000, "small": 1_000}, "m/other": {"big": 40_000}, "m/new": {"sanity": 100}}
+    rows = [{"molecule_id": "big"}, {"molecule_id": "small"}, {"molecule_id": "sanity"}, {"molecule_id": "unseen"}]
+    assert batch.estimated_cost("m/one", rows[:2], use) == (20_000 + 1_000) / 1e6  # its own averages
+    # a model that has only answered the sanity-check molecule: the most any model used on the others
+    assert batch.estimated_cost("m/new", rows, use) == (40_000 + 1_000 + 100 + openrouter.MAX_TOKENS) / 1e6
 
 
 def test_balance_is_credits_bought_minus_credits_used(monkeypatch):
