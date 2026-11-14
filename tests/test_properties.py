@@ -65,6 +65,8 @@ def test_every_property_has_a_test_question_and_answer_type():
         ("Brc1ccccc1", 157.01),  # bromobenzene: Br is 79.90
         ("OB(O)c1ccccc1", 121.93),  # phenylboronic acid: B is 10.81
         ("C[Si](C)(C)O", 90.20),  # trimethylsilanol: Si is 28.09
+        ("CC(=O)O[Lu](OC(C)=O)OC(C)=O", 352.10),  # lutetium triacetate: Lu is 174.97
+        ("CC(=O)O[177Lu](OC(C)=O)OC(C)=O", 354.08),  # with 177Lu (176.94) instead
     ],
 )
 def test_molecular_weight(smiles, expected):
@@ -90,6 +92,9 @@ def test_molecular_weight(smiles, expected):
         ("[18F]c1ccc(O)cc1", [112.0]),
         ("[2H]Oc1ccccc1", [96.1]),
         ("[81Br]c1ccc(N)cc1", [174.0]),
+        # Lutetium triacetate, C6H10LuO6+ with 175Lu (174.940775): 352.988; with a 177Lu label (176.943762): 354.991
+        ("CC(=O)O[Lu](OC(C)=O)OC(C)=O", [353.0]),
+        ("CC(=O)O[177Lu](OC(C)=O)OC(C)=O", [355.0]),
         # C100H201OH: the all-12C [M+H]+ peak (mass number 1419) is at 1420.58. With 100 carbons the one-13C peak
         # is tallest (the all-12C peak is about 90% as tall), at 1421.59: the mass defect is +1.6
         ("O" + "C" * 100, [1421.6]),
