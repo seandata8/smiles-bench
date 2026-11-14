@@ -85,6 +85,11 @@ def test_molecular_weight(smiles, expected):
         # Phenylboronic acid, C6H8BO2+ with 11B (11.009305): 123.061. The 10B peak, one below, is a quarter as tall
         ("OB(O)c1ccccc1", [123.1]),
         ("C[Si](C)(C)O", [91.1]),  # trimethylsilanol, C3H11OSi+ with 28Si (27.976927): 91.057
+        # A labelled atom is that one isotope: 4-[18F]fluorophenol with 18F (18.000938) is 112.042, not 113.0 as with
+        # 19F; O-deuterated phenol with 2H (2.014102) is 96.055; [81Br]bromoaniline has no 79Br peak
+        ("[18F]c1ccc(O)cc1", [112.0]),
+        ("[2H]Oc1ccccc1", [96.1]),
+        ("[81Br]c1ccc(N)cc1", [174.0]),
         # C100H201OH: the all-12C [M+H]+ peak (mass number 1419) is at 1420.58. With 100 carbons the one-13C peak
         # is tallest (the all-12C peak is about 90% as tall), at 1421.59: the mass defect is +1.6
         ("O" + "C" * 100, [1421.6]),
@@ -92,6 +97,11 @@ def test_molecular_weight(smiles, expected):
 )
 def test_isotope_mass(smiles, expected):
     assert isotope_mass(molecule(smiles)) == expected
+
+
+def test_a_label_with_no_known_mass_is_an_error():
+    with pytest.raises(ValueError, match="No exact mass for the isotope 36Cl"):
+        isotope_mass(molecule("[36Cl]c1ccc(O)cc1"))
 
 
 def test_isotope_abundances_of_each_element_add_up_to_one():
