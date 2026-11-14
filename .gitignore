@@ -64,3 +64,6 @@ instructions
 # computer only. The response records themselves (responses/) are committed.
 data/01-raw_data/**/reasoning/
 data/01-raw_data/**/batches/batch_*.json
+
+# Published papers kept for reference: copyrighted, so on this computer only (the repo is public).
+other/literature/*.pdf

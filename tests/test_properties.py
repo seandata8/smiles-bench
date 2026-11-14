@@ -102,6 +102,7 @@ def test_isotope_mass(smiles, expected):
         (ADAMANTANE, 8),
         (GONANE, 17),  # all 17 atoms are on the outer edge
         ("c1ccccc1-c1ccccc1", 6),  # biphenyl: two separate rings, so no larger ring
+        ("C1C2CC1C2", 4),  # bicyclo[1.1.1]pentane: three bridges, and no loop can use all three
     ],
 )
 def test_largest_ring(smiles, expected):
@@ -131,6 +132,16 @@ def test_longest_cycle_in_cages():
     c60 = c60_graph()
     assert (c60.number_of_nodes(), c60.number_of_edges()) == (60, 90)
     assert longest_cycle(c60) == 60
+
+
+def test_longest_cycle_in_a_cage_with_a_bridge():
+    """A cyclopropanated cage, as in a Bingel adduct: one more atom joined to both ends of one cage bond. Listing
+    cycles took hours to reach the loop through every atom; looking for that loop first finds it at once, going
+    round through the bridge instead of along the bond it spans (C70-deriv, with two bridges, has 72)."""
+    cage = c60_graph()
+    a, b = next(iter(cage.edges))
+    cage.add_edges_from([(a, "bridge"), ("bridge", b)])
+    assert longest_cycle(cage) == 61
 
 
 def test_longest_cycle_without_a_loop_through_every_atom():
