@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from smiley_bench.properties import (
+    ISOTOPES,
     TASKS,
     TESTS,
     answer_types,
@@ -62,6 +63,8 @@ def test_every_property_has_a_test_question_and_answer_type():
         (CAFFEINE, 194.19),
         (CHLOROBENZENE, 112.56),  # average weight of Cl (35.45), not the nominal mass of 112
         ("Brc1ccccc1", 157.01),  # bromobenzene: Br is 79.90
+        ("OB(O)c1ccccc1", 121.93),  # phenylboronic acid: B is 10.81
+        ("C[Si](C)(C)O", 90.20),  # trimethylsilanol: Si is 28.09
     ],
 )
 def test_molecular_weight(smiles, expected):
@@ -79,6 +82,9 @@ def test_molecular_weight(smiles, expected):
         ("Nc1ccc(Br)cc1", [172.0, 174.0]),  # 4-bromoaniline, 171.976 and 173.974: within 5% of each other
         ("Oc1ccc(Br)cc1Br", [252.9]),  # 2,4-dibromophenol: 79Br + 81Br (252.868) is about twice as tall
         ("Oc1c(Cl)cc(Cl)cc1Cl", [196.9, 198.9]),  # 2,4,6-trichlorophenol, 196.932 and 198.929: about 96% as tall
+        # Phenylboronic acid, C6H8BO2+ with 11B (11.009305): 123.061. The 10B peak, one below, is a quarter as tall
+        ("OB(O)c1ccccc1", [123.1]),
+        ("C[Si](C)(C)O", [91.1]),  # trimethylsilanol, C3H11OSi+ with 28Si (27.976927): 91.057
         # C100H201OH: the all-12C [M+H]+ peak (mass number 1419) is at 1420.58. With 100 carbons the one-13C peak
         # is tallest (the all-12C peak is about 90% as tall), at 1421.59: the mass defect is +1.6
         ("O" + "C" * 100, [1421.6]),
@@ -86,6 +92,11 @@ def test_molecular_weight(smiles, expected):
 )
 def test_isotope_mass(smiles, expected):
     assert isotope_mass(molecule(smiles)) == expected
+
+
+def test_isotope_abundances_of_each_element_add_up_to_one():
+    for element, isotopes in ISOTOPES.items():
+        assert sum(share for _, share in isotopes.values()) == pytest.approx(1.0, abs=1e-4), element
 
 
 # Ring test
@@ -244,7 +255,7 @@ def test_unreadable_smiles_is_an_error():
 
 def test_other_elements_are_an_error():
     with pytest.raises(ValueError, match="not allowed"):
-        molecule("C[Si](C)(C)C")
+        molecule("C[Se]C")  # dimethyl selenide: selenium is not allowed
 
 
 @pytest.mark.parametrize("smiles", ["C[N+](C)(C)C", "C[N+](=O)[O-]", "CC(=O)[O-]"])
