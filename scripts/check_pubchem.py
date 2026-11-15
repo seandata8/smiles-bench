@@ -48,10 +48,10 @@ def compound_ids(reply):
     return reply["IdentifierList"]["CID"] if reply else []
 
 
-def check(smiles):
+def check(smiles, test=None):
     """PubChem compound ids with exactly this structure, and with the same connectivity (any stereo), plus the
     name PubChem gives the first one."""
-    mol = molecule(smiles)
+    mol = molecule(smiles, test)
     exact = compound_ids(pubchem(f"compound/inchikey/{Chem.MolToInchiKey(mol)}/cids/JSON"))
     connectivity = compound_ids(
         pubchem(
@@ -78,7 +78,7 @@ if args.smiles:
 else:
     molecules = read_molecules()
     rows = [
-        {"test": row["test"], "status": row["status"], "name": row["name"]} | check(row["smiles_1"])
+        {"test": row["test"], "status": row["status"], "name": row["name"]} | check(row["smiles_1"], row["test"])
         for row in molecules.iter_rows(named=True)
     ]
 
