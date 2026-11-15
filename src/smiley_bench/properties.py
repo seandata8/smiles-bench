@@ -23,7 +23,9 @@ from rdkit.Chem import Descriptors
 from smiley_bench import paths
 
 ALLOWED_ELEMENTS = {"C", "H", "N", "O", "S", "P", "B", "Si", "F", "Cl", "Br", "I", "Lu"}
-ATOMS_ONLY_ELEMENTS = {"Co"}  # metals allowed in the atoms test only (decision 21), each added when its molecule is chosen: Co for cyanocobalamin-deriv
+ATOMS_ONLY_ELEMENTS = {
+    "Co"
+}  # metals allowed in the atoms test only (decision 21), each added when its molecule is chosen: Co for cyanocobalamin-deriv
 
 # Natural isotopes of each allowed element: {mass number: (exact mass in u, abundance)} (AME exact masses; IUPAC
 # representative abundances).

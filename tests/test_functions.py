@@ -9,7 +9,15 @@ import numpy as np
 import polars as pl
 import pytest
 
-from smiley_bench.analysis import holm, keep_complete_levels, pass_at_k, pass_hat_k, sign_flip_test
+from smiley_bench.analysis import (
+    compare_models,
+    holm,
+    keep_complete_levels,
+    pass_at_k,
+    pass_hat_k,
+    sign_flip_test,
+    summarise,
+)
 from smiley_bench.figures import stack_brackets
 from smiley_bench.scoring import is_correct, parse_answer
 from smiley_bench.simulation import simulate_results
@@ -133,6 +141,33 @@ def test_sign_flip_test_exact_for_small_case():
     all -) give an average this far from 0, so p is about 2 / 16 = 0.125."""
     p = sign_flip_test(np.full(4, 0.2), np.random.default_rng(1), n_permutations=100_000)
     assert p == pytest.approx(0.125, abs=0.005)
+
+
+def overall_results():
+    """Two models, A and B, on 4 questions with 3 answers each, all labelled with the one level "overall": A gets 3,
+    3, 2, 3 right, B gets 0, 1, 0, 0."""
+    rows = []
+    for question, (a_right, b_right) in enumerate([(3, 0), (3, 1), (2, 0), (3, 0)]):
+        for answer in range(3):
+            rows.append({"model": "A", "level": "overall", "id": f"q{question}", "correct": int(answer < a_right)})
+            rows.append({"model": "B", "level": "overall", "id": f"q{question}", "correct": int(answer < b_right)})
+    return pl.DataFrame(rows)
+
+
+def test_summarise_one_overall_level():
+    """With levels=["overall"], one row per model: A's score is 11 of 12 answers, inside its interval."""
+    summary = summarise(overall_results(), k=1, metrics=["pass@1"], levels=["overall"]).sort("model")
+    assert summary["level"].to_list() == ["overall", "overall"]
+    assert summary["estimate"].to_list() == pytest.approx([11 / 12, 1 / 12])
+    assert (summary["lower"] <= summary["estimate"]).all() and (summary["estimate"] <= summary["upper"]).all()
+
+
+def test_compare_models_one_overall_level():
+    """One pair, A minus B: the per-question differences are 1, 2/3, 2/3 and 1, averaging 5/6."""
+    compared = compare_models(overall_results(), n_permutations=1000, levels=["overall"])
+    assert compared.height == 1
+    assert compared["difference"][0] == pytest.approx(5 / 6)
+    assert compared["questions"][0] == 4
 
 
 def test_brackets_that_meet_at_a_model_share_a_row():
