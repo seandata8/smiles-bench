@@ -159,18 +159,20 @@ def short_name(model):
 
 def plot_overall(scores):
     """A bar for each model's overall % correct (scores: model, score), grouped by tier from free to high, one hue
-    per tier and a shade of it per model. Within a tier the models are in alphabetical order, so a model keeps its
-    shade as scores change. Each bar is labelled with its model and value."""
+    per tier and a shade of it per model. Within a tier the bars go from lowest score to highest. Each model's shade
+    is given by its name, in alphabetical order within its tier, not by its place in the order, so it keeps its shade
+    as scores change. Each bar is labelled with its model and value."""
     scores = scores.with_columns(tier=pl.col("model").map_elements(tier, return_dtype=pl.String))
     figure, ax = plt.subplots(figsize=(1.0 * scores.height + 2.5, 4.8))
     position, ticks, labels = 0.0, [], []
     for name in TIERS:
-        in_tier = scores.filter(pl.col("tier") == name).sort("model")
+        in_tier = scores.filter(pl.col("tier") == name)
         if in_tier.height == 0:
             continue
-        for (model, score), color in zip(
-            in_tier.select("model", "score").iter_rows(), shades(TIER_COLORS[name], in_tier.height)
-        ):
+        names = sorted(in_tier["model"])
+        shade_of = dict(zip(names, shades(TIER_COLORS[name], len(names))))
+        for model, score in in_tier.sort("score").select("model", "score").iter_rows():
+            color = shade_of[model]
             ax.bar(position, score, width=0.8, color=color, edgecolor="white", linewidth=2)
             ax.text(position, score + 1.5, f"{score:.0f}%", ha="center", va="bottom", fontsize=10, color="#0b0b0b")
             ticks.append(position)

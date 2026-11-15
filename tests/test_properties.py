@@ -66,7 +66,10 @@ def test_every_property_has_a_test_question_and_answer_type():
         ("OB(O)c1ccccc1", 121.93),  # phenylboronic acid: B is 10.81
         ("C[Si](C)(C)O", 90.20),  # trimethylsilanol: Si is 28.09
         ("CC(=O)O[Lu](OC(C)=O)OC(C)=O", 352.10),  # lutetium triacetate: Lu is 174.97
-        ("CC(=O)O[177Lu](OC(C)=O)OC(C)=O", 354.08),  # with 177Lu (176.94) instead
+        # With a label, both weights are accepted: the label's own mass, and its element's average (decision 19)
+        ("CC(=O)O[177Lu](OC(C)=O)OC(C)=O", [352.10, 354.08]),  # 177Lu (176.94) or Lu (174.97)
+        ("[18F]c1ccc(O)cc1", [111.11, 112.10]),  # 18F (18.00) or F (19.00)
+        ("[2H]Oc1ccccc1", [94.11, 95.12]),  # 2H (2.014) or H (1.008)
     ],
 )
 def test_molecular_weight(smiles, expected):
