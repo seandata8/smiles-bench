@@ -1,3 +1,10 @@
+/* Page background: light beige. The figures have transparent backgrounds, so they take on this colour. */
+body { background: #fbf6e6; }
+
+/* No space above the grey title band, so it starts at the top of the page. */
+#quarto-content, main.content { margin-top: 0 !important; padding-top: 0 !important; }
+#title-block-header { display: none; }
+
 /* The title, spelled in element tiles like a periodic table's. */
 .element-title {
   display: flex;
@@ -8,8 +15,8 @@
   margin: 1.5rem 0 0.5rem;
 }
 .element {
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   border: 2px solid;
   border-radius: 8px;
   display: flex;
@@ -20,15 +27,76 @@
   color: #1a1a1a;
 }
 .element .number { font-size: 0.8rem; }
-.element .symbol { font-size: 1.6rem; font-weight: 700; }
+.element .symbol { font-size: 1.92rem; font-weight: 700; }
+.element .star { font-size: 50%; vertical-align: super; }
 .element-dash { font-size: 2rem; font-weight: 700; margin: 0 2px; }
 .lanthanoid    { background: #f1f8dc; border-color: #9ccc65; }
 .halogen       { background: #e6f7e8; border-color: #66bb6a; }
 .nonmetal      { background: #fde7ea; border-color: #e57373; }
 .alkaline-earth { background: #fdf6d3; border-color: #e0bd52; }
-.element-note { text-align: center; font-size: 0.85rem; color: #555; margin-bottom: 2rem; }
+.element-note { text-align: center; font-size: 0.85rem; color: #555; margin: 0; }
+
+/* A band behind the title, a darker shade of the page background. */
+.title-band { background: #f0e6c8; padding: 1.75rem 1rem 1rem; }
+.element-title { margin-top: 0; }
+
+/* Divider under the title: a long chain of carbons with alternating single and double bonds (a polyene), drawn as
+   a skeletal formula. One tile holds one single bond and one double bond, and repeats across 80% of the page. */
+.polyene {
+  width: 80%;
+  height: 12px;
+  margin: 12px auto 2rem;
+  background-size: 20px 12px;
+  background-repeat: repeat-x;
+  background-position: center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='24'%3E%3Cg stroke='%23555' stroke-width='1.5' stroke-linecap='round' fill='none'%3E%3Cpath d='M0 18 L20 6 L40 18'/%3E%3Cpath d='M21 11.2 L35 19.6'/%3E%3C/g%3E%3C/svg%3E");
+}
 @media (max-width: 600px) {
-  .element { width: 46px; height: 46px; }
-  .element .symbol { font-size: 1.15rem; }
+  .element { width: 50px; height: 50px; }
+  .element .symbol { font-size: 1.38rem; }
   .element .number { font-size: 0.65rem; }
 }
+
+/* The diagram under the introduction: SMILES -> LLM -> structure -> properties, in four panels in a row (one above
+   the other on a phone). */
+.pipeline { display: flex; align-items: stretch; gap: 8px; margin: 1.5rem 0 2.5rem; }
+.panel {
+  flex: 1 1 0;
+  min-width: 0;
+  background: #fffdf6;
+  border: 1.5px solid #d9cfb4;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.panel.narrow { flex: 0.8 1 0; }
+.panel.wide { flex: 1.3 1 0; }
+.panel-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+.panel-title { font-weight: 700; font-size: 0.95rem; text-align: center; align-self: stretch; }
+.panel-note { font-size: 0.9rem; color: #555; }
+.panel img { width: 100%; height: auto; }
+.smiles {
+  font-size: 0.95rem;
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: none;
+  color: #1a1a1a;
+  text-align: center;
+}
+.llm-icon { width: 70%; max-width: 160px; }
+.arrow { align-self: center; font-size: 1.8rem; color: #8a8170; }
+.answers { font-size: 0.9rem; border-collapse: collapse; width: 100%; margin: 0; }
+.answers, .answers tr, .answers td { border: none !important; background: transparent !important; box-shadow: none !important; }
+.answers td { padding: 3px 4px; }
+.answers td:last-child { text-align: right; font-weight: 600; white-space: nowrap; }
+.answers .test td { font-weight: 700; color: #6b5f45; padding-top: 6px; text-align: left; }
+@media (max-width: 800px) {
+  .pipeline { flex-direction: column; }
+  .arrow { transform: rotate(90deg); }
+}
+
+/* Section headers: no underline, and as wide as the figures, so they sit at the figures' left edge. */
+h2 { border-bottom: none !important; margin-top: 2.5rem; }

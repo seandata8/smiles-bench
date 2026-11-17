@@ -219,7 +219,9 @@ def cost_label(cost):
     return "<$0.01" if cost < 0.01 else f"${cost:.2f}"
 
 
-def plot_overall(scores, questions, comparisons=None, tier_of=None, tier_labels=None, legend_title="Price tier"):
+def plot_overall(
+    scores, questions, comparisons=None, tier_of=None, tier_labels=None, legend_title="Price tier", height=None
+):
     """A bar for each model's overall % correct (scores: model, score, answered, and optionally lower and upper, its
     95% interval in %, and cost, the dollars its answers cost, shown above the bar), grouped by tier from free to high, one hue per tier and a shade of it per model. Within a tier
     the bars go from lowest score to highest. Each model's shade is given by its name, in alphabetical order within
@@ -228,7 +230,8 @@ def plot_overall(scores, questions, comparisons=None, tier_of=None, tier_labels=
     is marked with * and its count of answered questions is given in a note below the chart.
 
     tier_of: {model: tier}, to group the models other than by price tier (e.g. by what they cost: spend_tier()), with
-    tier_labels ({tier: legend label}) and legend_title for the legend.
+    tier_labels ({tier: legend label}) and legend_title for the legend. height: the figure's height in inches, if not
+    the usual one.
 
     `comparisons` (from compare_models, run within each tier: model_a, model_b, p_adjusted) adds a bracket for every
     pair of models that differ at Holm-adjusted p < 0.05, stacked as in plot_pass_at_1()."""
@@ -237,7 +240,8 @@ def plot_overall(scores, questions, comparisons=None, tier_of=None, tier_labels=
     scores = scores.with_columns(tier=pl.col("model").replace_strict(tier_of))
     has_intervals = "lower" in scores.columns
     has_costs = "cost" in scores.columns
-    figure, ax = plt.subplots(figsize=(1.0 * scores.height + 2.5, 6.4 if comparisons is not None else 5.6))
+    height = height or (6.4 if comparisons is not None else 5.6)
+    figure, ax = plt.subplots(figsize=(1.0 * scores.height + 2.5, height))
     position, ticks, labels = 0.0, [], []
     position_of = {}
     color_of = model_colors(scores["model"].to_list(), tier_of)
