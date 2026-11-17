@@ -67,3 +67,7 @@ data/01-raw_data/**/batches/batch_*.json
 
 # Published papers kept for reference: copyrighted, so on this computer only (the repo is public).
 other/literature/*.pdf
+
+# Quarto's build output (the website is built and published by GitHub Actions: .github/workflows/website.yml)
+website/_site/
+website/.quarto/

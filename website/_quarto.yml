@@ -1,0 +1,10 @@
+project:
+  type: website
+
+website:
+  title: "Smiles-Bench"
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
