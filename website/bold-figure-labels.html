@@ -1,0 +1,6 @@
+<!-- Makes "Figure N" at the start of each figure caption bold (Quarto can bold the word "Figure" but not its number) -->
+<script>
+document.querySelectorAll("figcaption.quarto-float-caption").forEach(function (caption) {
+  caption.innerHTML = caption.innerHTML.replace(/^(\s*)(Figure&nbsp;\d+)/, "$1<strong>$2</strong>");
+});
+</script>

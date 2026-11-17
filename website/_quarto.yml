@@ -8,3 +8,4 @@ format:
   html:
     theme: cosmo
     css: styles.css
+    include-after-body: bold-figure-labels.html

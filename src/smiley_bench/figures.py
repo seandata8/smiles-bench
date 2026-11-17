@@ -6,6 +6,8 @@
 # Follows the sketch in other/sketches/smiley-bench-results.png. Significant differences are marked with brackets
 # the way GraphPad Prism does: only pairs with p < 0.05, stacked to use as little height as possible.
 
+import math
+
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
@@ -132,13 +134,14 @@ PAID_TIERS = {
 # is pale on white, so every bar carries its model's name and value as text.
 TIER_COLORS = {"free": "#2a78d6", "low": "#eb6834", "med": "#1baf7a", "high": "#6250d6"}
 # Tiers by what a model's answers to the whole benchmark actually cost, not by its price per token: a model that
-# writes many more tokens can cost more than a pricier one. Same four tiers and colours; "free" is "under $0.10".
-SPEND_TIER_LABELS = {
-    "free": "~free (under \\$0.10)",
-    "low": "low (\\$0.10-1.00)",
-    "med": "med (\\$1.01-3.00)",
-    "high": "high (over \\$4.00)",
-}
+# writes many more tokens can cost more than a pricier one. Same four tiers: "free" is under $0.10 (spend_tier()).
+
+
+def spend_group_labels(costs):
+    """The label over each group of models on the chart by what their answers cost (spend_tier()), e.g.
+    "Cost $4–24": the top of the last group is the highest of `costs`, rounded up to the next dollar."""
+    top = math.ceil(max(costs))
+    return {"free": "Cost <10¢", "low": "Cost 10¢–\\$1", "med": "Cost \\$1–3", "high": f"Cost \\$4–{top}"}
 
 
 def tier(model):
@@ -152,7 +155,8 @@ def tier(model):
 
 
 def spend_tier(cost):
-    """The tier of what a model's answers cost in dollars (see SPEND_TIER_LABELS)."""
+    """The tier of what a model's answers cost in dollars: free (under $0.10), low ($0.10-1.00), med ($1.01-3.00) or
+    high (over $4.00)."""
     if cost < 0.10:
         return "free"
     if cost <= 1.00:
@@ -220,7 +224,14 @@ def cost_label(cost):
 
 
 def plot_overall(
-    scores, questions, comparisons=None, tier_of=None, tier_labels=None, legend_title="Price tier", height=None
+    scores,
+    questions,
+    comparisons=None,
+    tier_of=None,
+    tier_labels=None,
+    legend_title="Price tier",
+    height=None,
+    group_labels=None,
 ):
     """A bar for each model's overall % correct (scores: model, score, answered, and optionally lower and upper, its
     95% interval in %, and cost, the dollars its answers cost, shown above the bar), grouped by tier from free to high, one hue per tier and a shade of it per model. Within a tier
@@ -233,6 +244,10 @@ def plot_overall(
     tier_labels ({tier: legend label}) and legend_title for the legend. height: the figure's height in inches, if not
     the usual one.
 
+    group_labels: {tier: label}, to colour the bars by company instead (company_color(), as on the cost-vs-score
+    chart), with a labelled line over each group of bars in place of the tier legend, and a small legend of the
+    companies.
+
     `comparisons` (from compare_models, run within each tier: model_a, model_b, p_adjusted) adds a bracket for every
     pair of models that differ at Holm-adjusted p < 0.05, stacked as in plot_pass_at_1()."""
     tier_of = tier_of or {model: tier(model) for model in scores["model"]}
@@ -244,7 +259,11 @@ def plot_overall(
     figure, ax = plt.subplots(figsize=(1.0 * scores.height + 2.5, height))
     position, ticks, labels = 0.0, [], []
     position_of = {}
-    color_of = model_colors(scores["model"].to_list(), tier_of)
+    if group_labels:
+        color_of = {model: company_color(model) for model in scores["model"]}
+    else:
+        color_of = model_colors(scores["model"].to_list(), tier_of)
+    group_ends = {}  # the first and last bar of each group: (left position, right position)
     for name in TIERS:
         in_tier = scores.filter(pl.col("tier") == name)
         if in_tier.height == 0:
@@ -269,7 +288,9 @@ def plot_overall(
             ticks.append(position)
             labels.append(short_name(model))
             position += 1
-        ax.bar(0, 0, color=TIER_COLORS[name], label=tier_labels.get(name, name))  # one legend entry per tier
+        group_ends[name] = (position_of[in_tier.sort("score")["model"][0]], position - 1)
+        if not group_labels:
+            ax.bar(0, 0, color=TIER_COLORS[name], label=tier_labels.get(name, name))  # one legend entry per tier
         position += 0.6  # a gap between tiers
     ax.set_xticks(ticks, labels, rotation=30, ha="right", fontsize=17)
     top = 105 + (COST_LINE if has_costs else 0)
@@ -282,6 +303,15 @@ def plot_overall(
         for (left, right, p), row in zip(pairs, rows):
             draw_bracket(ax, left, right, row, p_value_label(p))
         top = max(top, BRACKET_BASE + (max(rows, default=-1) + 1) * BRACKET_STEP)
+    if group_labels:  # a line over each group of bars, with its label above it, all at one height
+        line = top + 5
+        for name, (left, right) in group_ends.items():
+            ax.plot([left - 0.4, left - 0.4, right + 0.4, right + 0.4], [line - 2, line, line, line - 2],
+                    color="#5f5e5a", lw=1.2)
+            ax.text((left + right) / 2, line + 1.5, group_labels[name], ha="center", va="bottom", fontsize=19,
+                    color="#0b0b0b")
+        top = line + 11
+        ax.spines["left"].set_bounds(0, 100)
     ax.set_ylim(0, top)
     ax.set_yticks(range(0, 101, 20))
     ax.set_ylabel("% correct (95% CI)" if has_intervals else "% correct", fontsize=18)
@@ -290,11 +320,19 @@ def plot_overall(
     ax.set_axisbelow(True)
     ax.spines[["top", "right"]].set_visible(False)
     ax.spines[["left", "bottom"]].set_color("#8a8984")
-    # The legend in one row above the bars, where it cannot cover a label
-    ax.legend(
-        title=legend_title, frameon=False, loc="lower left", bbox_to_anchor=(0, 1.02), ncol=len(TIERS), fontsize=17,
-        title_fontsize=18, alignment="left",
-    )
+    if group_labels:  # a small legend of the companies, in the empty space above the lowest-scoring bars
+        companies = sorted({model.split("/")[0] for model in scores["model"] if not model.endswith(":free")},
+                           key=lambda company: COMPANY_NAMES[company])
+        for company in companies:
+            ax.bar(0, 0, color=COMPANY_COLORS[company], label=COMPANY_NAMES[company])
+        ax.bar(0, 0, color=FREE_COLOR, label="Free models")
+        ax.legend(frameon=False, loc="upper left", bbox_to_anchor=(0.01, 100 / top), ncol=2, fontsize=15.6,
+                  columnspacing=1.2, handletextpad=0.4)
+    else:  # the legend in one row above the bars, where it cannot cover a label
+        ax.legend(
+            title=legend_title, frameon=False, loc="lower left", bbox_to_anchor=(0, 1.02), ncol=len(TIERS),
+            fontsize=17, title_fontsize=18, alignment="left",
+        )
     notes = []
     unfinished = scores.filter(pl.col("answered") < questions).sort("model")
     if unfinished.height:
@@ -312,32 +350,53 @@ def plot_overall(
     return figure
 
 
-def plot_groups_by_test(summary, groups, tests):
+def plot_groups_by_test(summary, groups, tests, width=9, wrong=False, error_bars=True):
     """% correct on each test (pass@1, with its 95% interval) for groups of models: the tests along the x-axis, one
     bar per group in each, labelled with its value.
 
     summary: from summarise(), with each group as the "model" and the test as the level.
-    groups: {group name: colour}, in the order to draw them. tests: {test: label on the x-axis}, in order."""
-    figure, ax = plt.subplots(figsize=(9, 4.8), layout="constrained")
+    groups: {group name: colour}, in the order to draw them. tests: {test: label on the x-axis}, in order.
+    width: the figure's width in inches. wrong: draw the % wrong instead (100 minus the % correct, its interval
+    flipped the same way), with the y-axis only as high as the bars need, so small differences can be seen while
+    the bars still start at 0. error_bars: False to leave out the 95% intervals."""
+    figure, ax = plt.subplots(figsize=(width, 4.8), layout="constrained")
     width = 0.8 / len(groups)
+    highest = 0  # the top of the highest bar or error bar
     for i, (group, color) in enumerate(groups.items()):
         one = summary.filter(pl.col("model") == group)
         estimate = dict(zip(one["level"], 100 * one["estimate"]))
         lower = dict(zip(one["level"], 100 * one["lower"]))
         upper = dict(zip(one["level"], 100 * one["upper"]))
+        if wrong:
+            estimate = {test: 100 - value for test, value in estimate.items()}
+            lower, upper = (
+                {test: 100 - value for test, value in upper.items()},
+                {test: 100 - value for test, value in lower.items()},
+            )
+        if not error_bars:  # each label goes just above its bar instead of above its error bar
+            upper = estimate
+        highest = max(highest, *upper.values())
         x = [j - 0.4 + width * (i + 0.5) for j in range(len(tests))]
         heights = [estimate[test] for test in tests]
         below = [estimate[test] - lower[test] for test in tests]
         above = [upper[test] - estimate[test] for test in tests]
         ax.bar(x, heights, width=width, color=color, edgecolor="white", linewidth=2, label=group)
-        ax.errorbar(x, heights, yerr=[below, above], fmt="none", color="#0b0b0b", capsize=4, linewidth=1)
+        if error_bars:
+            ax.errorbar(x, heights, yerr=[below, above], fmt="none", color="#0b0b0b", capsize=4, linewidth=1)
         for x_bar, height, test in zip(x, heights, tests):
-            ax.text(x_bar, upper[test] + 1.5, f"{height:.0f}%", ha="center", va="bottom", fontsize=11, color="#0b0b0b")
+            ax.annotate(f"{height:.0f}%", (x_bar, upper[test]), xytext=(0, 4), textcoords="offset points", ha="center",
+                        va="bottom", fontsize=11, color="#0b0b0b")
     ax.set_xticks(range(len(tests)), list(tests.values()), fontsize=12)
     ax.tick_params(axis="y", labelsize=12)
-    ax.set_ylim(0, 108)
-    ax.set_yticks(range(0, 101, 20))
-    ax.set_ylabel("% correct (95% CI)", fontsize=12)
+    if wrong:
+        top = 10 * math.ceil((highest + 4) / 10)  # room for the labels, up to the next 10%
+        ax.set_ylim(0, top)
+        ax.set_yticks(range(0, top + 1, 10))
+        ax.set_ylabel("% wrong (95% CI)" if error_bars else "% wrong", fontsize=12)
+    else:
+        ax.set_ylim(0, 108)
+        ax.set_yticks(range(0, 101, 20))
+        ax.set_ylabel("% correct (95% CI)" if error_bars else "% correct", fontsize=12)
     ax.yaxis.grid(True, color="#e4e3df", linewidth=0.8)
     ax.set_axisbelow(True)
     ax.spines[["top", "right"]].set_visible(False)
@@ -362,6 +421,12 @@ COMPANY_COLORS = {
     "z-ai": "#c99a06",
 }
 FREE_COLOR = "#a8a7a2"
+
+
+def company_color(model):
+    """A model's colour: its company's (COMPANY_COLORS), or grey for a free model."""
+    return FREE_COLOR if model.endswith(":free") else COMPANY_COLORS[model.split("/")[0]]
+
 COMPANY_NAMES = {
     "anthropic": "Anthropic", "openai": "OpenAI", "google": "Google", "x-ai": "xAI", "mistralai": "Mistral",
     "minimax": "MiniMax", "deepseek": "DeepSeek", "moonshotai": "Moonshot", "z-ai": "Zhipu",
@@ -431,8 +496,7 @@ def plot_cost_vs_score(scores, questions):
     x_of = spread_sideways(scores)
     for row in scores.iter_rows(named=True):
         model = row["model"]
-        color = FREE_COLOR if model.endswith(":free") else COMPANY_COLORS[model.split("/")[0]]
-        ax.scatter(x_of[model], row["score"], s=DOT_SIZE, color=color, edgecolor="white", linewidth=1.5, zorder=3)
+        ax.scatter(x_of[model], row["score"], s=DOT_SIZE, color=company_color(model), edgecolor="white", linewidth=1.5, zorder=3)
         name = SCATTER_NAMES.get(model, short_name(model)) + ("*" if row["answered"] < questions else "")
         if model in LABEL_PLACES:
             ax.annotate(name, (x_of[model], row["score"]), xytext=LABEL_PLACES[model], textcoords="data",

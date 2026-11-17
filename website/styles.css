@@ -100,3 +100,6 @@ body { background: #fbf6e6; }
 
 /* Section headers: no underline, and as wide as the figures, so they sit at the figures' left edge. */
 h2 { border-bottom: none !important; margin-top: 2.5rem; }
+
+/* Figure captions in a darker grey than Quarto's, for easier reading */
+figcaption.quarto-float-caption { color: #3a3a3a !important; }
