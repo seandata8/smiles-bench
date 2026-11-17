@@ -22,15 +22,52 @@ def test_finish_all_shows_every_batch_and_finishes_each_when_done(monkeypatch, c
 
     finished = []
     monkeypatch.setattr(batch, "check", fake_check)
-    monkeypatch.setattr(batch, "finish", lambda model, b, rows, trial: finished.append(model) or {"model": model})
+    monkeypatch.setattr(
+        batch, "finish", lambda model, test, b, rows, trial: finished.append(model) or {"model": model, "test": test}
+    )
     monkeypatch.setattr(batch, "POLL_SECONDS", 0)
 
-    summary = batch.finish_all({"a/claude-opus": "id-opus", "a/claude-haiku": "id-haiku"}, rows=[], trial=1)
+    batch_ids = {("a/claude-opus", "rings"): "id-opus", ("a/claude-haiku", "atoms"): "id-haiku"}
+    summary = batch.finish_all(batch_ids, rows=[], trial=1)
 
     assert finished == ["a/claude-haiku", "a/claude-opus"]  # each saved as soon as it is done
-    assert [s["model"] for s in summary] == ["a/claude-opus", "a/claude-haiku"]  # in the order given
+    assert [(s["model"], s["test"]) for s in summary] == list(batch_ids)  # in the order given
     first_line = capsys.readouterr().out.splitlines()[0]
-    assert "claude-opus in_progress" in first_line and "claude-haiku in_progress" in first_line
+    assert first_line.endswith("claude-opus: rings ?/?; claude-haiku: atoms ?/?")
+
+
+def test_progress_line_groups_each_models_batches():
+    lines = [
+        (
+            "google/gemini-lite",
+            batch.progress("mass", {"status": "in_progress", "request_counts": {"completed": 0, "total": 3}}),
+        ),
+        ("google/gemini-lite", batch.progress("rings", {"status": "validating"})),
+        (
+            "openai/luna",
+            batch.progress("atoms", {"status": "in_progress", "request_counts": {"completed": 2, "total": 30}}),
+        ),
+    ]
+    assert batch.progress_line(lines) == "gemini-lite: mass 0/3 | rings validating ?/?; luna: atoms 2/30"
+
+
+def test_id_file_has_the_test_in_its_name_except_for_old_batches_of_every_test(monkeypatch, tmp_path):
+    monkeypatch.setattr(batch, "folder", lambda: tmp_path)
+    assert (
+        batch.id_file("google/gemini-3.5-flash-lite", 1, "rings").name
+        == "google_gemini-3.5-flash-lite_rings_trial1.json"
+    )
+    assert batch.id_file("minimax/minimax-m3", 1, "all").name == "minimax_minimax-m3_trial1.json"
+
+
+def test_pending_gives_old_batches_the_test_all(monkeypatch, tmp_path):
+    monkeypatch.setattr(batch, "folder", lambda: tmp_path)
+    (tmp_path / "minimax_minimax-m3_trial1.json").write_text(
+        '{"batch_id": "b1", "model": "minimax/minimax-m3", "trial": 1}'
+    )
+    (tmp_path / "x_m_rings_trial1.json").write_text('{"batch_id": "b2", "model": "x/m", "test": "rings", "trial": 1}')
+    (tmp_path / "batch_b0.json").write_text("{}")  # a finished batch, kept: not pending
+    assert sorted((p["model"], p["test"]) for p in batch.pending()) == [("minimax/minimax-m3", "all"), ("x/m", "rings")]
 
 
 def test_save_answers_keeps_reasoning_apart_from_the_response(monkeypatch, tmp_path):
@@ -63,8 +100,8 @@ def write_response(folder, name, model, prompt, tokens_out):
 
 
 def test_estimated_cost_uses_past_token_use(monkeypatch, tmp_path):
-    """Per prompt: the model's own average on that molecule; a molecule it has not answered: the highest average of
-    any model on it; a molecule no model has answered: MAX_TOKENS."""
+    """Per prompt: the model's own average on that molecule; a molecule it has not answered: the median of the other
+    models' averages on it; a molecule no model has answered: MAX_TOKENS."""
     monkeypatch.setattr(paths, "RAW_DATA", tmp_path)
     monkeypatch.setattr(batch, "batch_price", lambda model: (0.0, 1e-6))  # output tokens only: $1 per million
     write_response(tmp_path / "pilot" / "responses", "a", "m/one", "big form 1", 30_000)
@@ -72,14 +109,21 @@ def test_estimated_cost_uses_past_token_use(monkeypatch, tmp_path):
     write_response(tmp_path / "max-run" / "responses", "c", "m/one", "small form 1", 1_000)
     write_response(tmp_path / "pilot" / "responses", "d", "m/one", "a prompt no longer asked", 99_000)
     write_response(tmp_path / "responses", "e", "m/other", "big form 1", 40_000)
+    write_response(tmp_path / "responses", "g", "m/third", "big form 1", 5_000)
     write_response(tmp_path / "responses", "f", "m/new", "sanity form 1", 100)
     molecule_of_prompt = {"big form 1": "big", "big form 3": "big", "small form 1": "small", "sanity form 1": "sanity"}
     use = batch.saved_token_use(molecule_of_prompt)
-    assert use == {"m/one": {"big": 20_000, "small": 1_000}, "m/other": {"big": 40_000}, "m/new": {"sanity": 100}}
+    assert use == {
+        "m/one": {"big": 20_000, "small": 1_000},
+        "m/other": {"big": 40_000},
+        "m/third": {"big": 5_000},
+        "m/new": {"sanity": 100},
+    }
     rows = [{"molecule_id": "big"}, {"molecule_id": "small"}, {"molecule_id": "sanity"}, {"molecule_id": "unseen"}]
     assert batch.estimated_cost("m/one", rows[:2], use) == (20_000 + 1_000) / 1e6  # its own averages
-    # a model that has only answered the sanity-check molecule: the most any model used on the others
-    assert batch.estimated_cost("m/new", rows, use) == (40_000 + 1_000 + 100 + openrouter.MAX_TOKENS) / 1e6
+    # a model that has only answered the sanity-check molecule: the median of the other models on the others
+    # (big: 20,000, 40,000 and 5,000, so 20,000; small: only m/one's 1,000)
+    assert batch.estimated_cost("m/new", rows, use) == (20_000 + 1_000 + 100 + openrouter.MAX_TOKENS) / 1e6
 
 
 def test_balance_is_credits_bought_minus_credits_used(monkeypatch):
@@ -92,3 +136,14 @@ def test_batches_over_the_balance_are_refused_before_anything_is_sent():
     worst = {"a/haiku": 0.48, "a/sonnet": 9.72, "a/opus": 19.44}
     assert batch.refused_for_balance(worst, 14.11) == ["a/opus"]
     assert batch.refused_for_balance(worst, 20.0) == []
+
+
+def test_check_waits_out_a_timeout(monkeypatch):
+    """A status check that times out does not stop the run: the batch is checked again later."""
+
+    def times_out(method, path):
+        raise TimeoutError("The read operation timed out")
+
+    monkeypatch.setattr(batch, "call_api", times_out)
+    result = batch.check("batch-1")
+    assert result == {"status": "no reply"} and not batch.is_done(result)

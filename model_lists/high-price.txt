@@ -1,0 +1,15 @@
+# High price tier: batch output $10 to $25 per million tokens (other/notes/models.md; prices checked 15 November
+# 2026). Every model in this range that is the newest of its line, run by batch (--batch). Lines starting with #
+# are ignored.
+anthropic/claude-opus-5.5
+#openai/gpt-5.5  (dropped 16 November: OpenRouter has no batch endpoint for it without our own OpenAI key; other/notes/models.md)
+anthropic/claude-fable-5.2
+openai/gpt-6-astra
+# Left out:
+#openai/gpt-6-astra-pro  (same price as gpt-6-astra; one of the two is enough)
+#openai/gpt-5.6-sol, openai/gpt-5.6-sol-pro  ($10.00; an older line than gpt-6.1-sol, which is in the medium tier)
+#moonshotai/kimi-k3  ($11.40; kimi-k3.1-pro, in the medium tier, is newer)
+#anthropic/claude-opus-5, claude-opus-4.8, claude-opus-4.7, claude-opus-4.6, claude-opus-4.5  ($12.50; older than opus-5.5)
+#anthropic/claude-fable-5.1, anthropic/claude-fable-5  ($25.00; older than fable-5.2)
+#openai/gpt-4-turbo  ($15.00; old)
+# Over the tier's $25: openai/gpt-5-pro, gpt-5.2-pro, gpt-5.4-pro, gpt-5.5-pro ($60-90), anthropic/claude-opus-4.1 ($37.50)

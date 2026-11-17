@@ -1,0 +1,22 @@
+# Low price tier: batch output under $2 per million tokens (other/notes/models.md; prices checked 15 November 2026).
+# Starting set (13 November): one model per company, the newest of its line; more can be added later (see
+# models.md). Run by batch (--batch). Lines starting with # are ignored, so a comment never shares a line with an id.
+# Considered: every model OpenRouter can run by batch in this price range; older versions of a chosen line are not
+# listed (e.g. deepseek-v4-flash-0731, gemini-3.1-flash-lite, gpt-5.6-luna).
+deepseek/deepseek-v4.1-flash-1017
+z-ai/glm-5.3-flash
+anthropic/claude-haiku-5.5
+openai/gpt-6-luna
+minimax/minimax-m3
+#qwen/qwen3.7-plus  (dropped 15 November: its sanity-check batch sat at Alibaba for hours with no answers; Qwen stays in the medium tier with qwen3.8-max)
+google/gemini-3.5-flash-lite
+# Left out:
+#deepseek/deepseek-v4.1-flash  (an earlier release of v4.1-flash, 10 September; the 1017 release is newer)
+#openai/gpt-6-luna-pro  (same price as gpt-6-luna; one model per company in a tier)
+#google/gemini-3.8-flash  ($1.88, newer than 3.5-flash-lite: the replacement if gemini-3.5-flash-lite has to go)
+#meta/muse-glimmer-30b  ($0.96; not in the list chosen on 13 November, reason not recorded)
+#thinkingmachines/inkling-small  ($0.96; not in the list chosen on 13 November, reason not recorded)
+#morph/morph-v3-fast, morph/morph-v3-large  (code-editing models, not general chat models)
+# Between the tiers (over $2 but under $3, so in neither low nor med):
+#qwen/qwen3.8-27b, z-ai/glm-5.3, x-ai/grok-4.3  ($2.00 each)
+#openai/gpt-6.1-terra  ($2.50)

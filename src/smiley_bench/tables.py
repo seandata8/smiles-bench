@@ -123,8 +123,10 @@ def write_with_canary(table, path):
 
 
 def read_with_canary(path, schema_overrides=None):
-    """Read a CSV that has a "canary" column, checking CANARY is in it, and return the table without it."""
-    table = pl.read_csv(path, schema_overrides=schema_overrides)
+    """Read a CSV that has a "canary" column, checking CANARY is in it, and return the table without it. Every row is
+    used to work out each column's type (infer_schema_length=None), since a column such as "given" can hold only
+    numbers for thousands of rows before the first true or false."""
+    table = pl.read_csv(path, schema_overrides=schema_overrides, infer_schema_length=None)
     if "canary" not in table.columns or not (table["canary"] == CANARY).any():
         raise ValueError(f"{path} needs a canary column with the canary text in at least one row:\n{CANARY}")
     return table.drop("canary")
