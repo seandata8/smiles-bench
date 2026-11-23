@@ -103,3 +103,26 @@ h2 { border-bottom: none !important; margin-top: 2.5rem; }
 
 /* Figure captions in a darker grey than Quarto's, for easier reading */
 figcaption.quarto-float-caption { color: #3a3a3a !important; }
+
+/* The hardest molecules: the parent and the benchmark's molecule side by side (one above the other on a phone),
+   each with its SMILES underneath: removed atoms in red on the parent, added atoms in blue on the benchmark molecule,
+   the same colours as in the drawings. */
+.molecule-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.molecule-pair figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.molecule-pair img { width: 100%; height: auto; }
+.molecule-pair figcaption { font-weight: 700; }
+.pair-smiles {
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: none;
+  color: #1a1a1a;
+}
+.pair-smiles mark { padding: 0; }
+.pair-smiles mark.removed { background: #f27373; }
+.pair-smiles mark.added { background: #73a8f2; }
+.pair-smiles mark.swapped { background: #a983ea; }
+@media (max-width: 800px) { .molecule-pair { grid-template-columns: 1fr; } }
+
+/* The 3D models of a hardest molecule and its parent (3Dmol.js draws into these) */
+.viewer-3d { position: relative; width: 80%; aspect-ratio: 1 / 1; margin: 0 auto; border: 1.5px solid #d9cfb4; border-radius: 10px; }

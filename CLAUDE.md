@@ -3,4 +3,4 @@
 - don't automatically start doing a task if I'm only asking a question. Before doing a long task, only do it if I tell you to. Otherwise, ask first.
 - We will often come up with a plan first before executing on that plan, which involves writing code
 - Write code that is simple and fits the rule Write-Once-Run-Many (i.e. reuse functions). Don't write clever code. Aim for clear, simple code
-- 
+- If your 2nd attempt at solving a difficult problem fails, stop and ask for my advice and if I want you to continue to try to solve the problem on your own. Especially when it comes to making figures for the website.

@@ -636,6 +636,11 @@ def fit_on_axis(score_of, height_of, fit_models):
     return slope, intercept, r_squared, outside
 
 
+def group_colors(n):
+    """The colours of n groups of models, group 1 (the best) yellow through to the last group purple."""
+    return [tuple(color) for color in plt.get_cmap("viridis")(np.linspace(0.95, 0.05, n))]
+
+
 def plot_bands(scores, groups, fit_models=(), boxes=None, box_notes=None):
     """% correct across, what the answers cost up (scores: model, score in %, cost), a dot for each model in its
     company's colour with its name standing above it, on a band for each of `groups` (lists of models, best first):
@@ -650,7 +655,7 @@ def plot_bands(scores, groups, fit_models=(), boxes=None, box_notes=None):
     score_of = dict(scores.select("model", "score").rows())
     cost_of = dict(scores.select("model", "cost").rows())
     figure, ax = plt.subplots(figsize=(16.9, 8.5))
-    ramp = plt.get_cmap("viridis")(np.linspace(0.95, 0.05, len(groups)))  # group 1 yellow ... the last group purple
+    ramp = group_colors(len(groups))
     band_of = {}  # each model's band: its left and right edge, in % correct
     for number, members in enumerate(groups, start=1):
         left = max(min(score_of[m] for m in members) - BAND_PAD, 0)
