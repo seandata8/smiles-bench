@@ -684,6 +684,7 @@ def plot_bands(scores, groups, fit_models=(), boxes=None, box_notes=None):
             names[model] = ax.annotate(name, point, xytext=(0, 12), textcoords="offset points", rotation=90,
                                        ha="center", va="bottom", fontsize=15.6, color="#0b0b0b")
     ax.set_xlim(0, 100)
+    ax.set_xticks(range(0, 101, 10))
     ax.set_yscale("symlog", linthresh=0.1, linscale=0.4)
     ax.set_ylim(-0.02, 70)
     if fit_models:  # fitted on the axis as it is drawn: the symlog of the cost
