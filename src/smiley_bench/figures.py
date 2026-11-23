@@ -12,6 +12,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
 from matplotlib.colors import to_rgb
+from matplotlib.patches import Rectangle
+from matplotlib.transforms import Bbox
+from scipy.stats import t
 
 from smiley_bench.tables import LEVELS
 
@@ -603,4 +606,133 @@ def plot_cost_vs_score(scores, questions):
         notes.append(f"* Unfinished, scored on the questions answered so far: {counts}")
     figure.text(0.01, 0.01, "\n".join(notes), ha="left", va="bottom", fontsize=14.4, color="#5f5e5a")
     figure.tight_layout(rect=(0, 0.035 * len(notes), 1, 1))
+    return figure
+
+
+# Names on the bands chart that go below their dot instead of above it, clear of a neighbour
+BAND_LABELS_BELOW = {"google/gemini-4-carbon", "deepseek/deepseek-v4.1-flash-1017"}
+BOX_SCALE = 1.2  # how much bigger than its dot and name a box round a model is
+BAND_PAD = 2  # how far a band reaches past its group's lowest and highest score, in % points: the gaps show the background
+
+
+def fit_on_axis(score_of, height_of, fit_models):
+    """A least-squares line of height (on the axis as drawn) against score through `fit_models`, and for every other
+    model whether it is far from the line: {model: (residual, p-value)}. The p-value is the two-sided t-test of a new
+    point, with the residual over its prediction standard error (the line's residual spread, df = fitted models - 2,
+    widened for a point far from the middle of the fitted scores)."""
+    x = np.array([score_of[m] for m in fit_models])
+    y = np.array([height_of[m] for m in fit_models])
+    slope, intercept = np.polyfit(x, y, 1)
+    n = len(x)
+    spread = np.sqrt(((y - intercept - slope * x) ** 2).sum() / (n - 2))
+    outside = {}
+    for model in score_of:
+        if model in fit_models:
+            continue
+        residual = height_of[model] - intercept - slope * score_of[model]
+        se = spread * np.sqrt(1 + 1 / n + (score_of[model] - x.mean()) ** 2 / ((x - x.mean()) ** 2).sum())
+        outside[model] = (residual, 2 * t.sf(abs(residual / se), n - 2))
+    r_squared = np.corrcoef(x, y)[0, 1] ** 2
+    return slope, intercept, r_squared, outside
+
+
+def plot_bands(scores, groups, fit_models=(), boxes=None, box_notes=None):
+    """% correct across, what the answers cost up (scores: model, score in %, cost), a dot for each model in its
+    company's colour with its name standing above it, on a band for each of `groups` (lists of models, best first):
+    from BAND_PAD below the group's lowest score to BAND_PAD above its highest, with the background between the
+    bands. The cost axis is symlog, so the free models (cost 0) and the dearest model can be on one axis. Models
+    that cost next to nothing and score within 2 points of each other in a run of three or more are named in a fan,
+    each with a thin line to its dot. `fit_models`: a straight line is fitted through these models' dots (least squares,
+    straight as it is drawn on the cost axis, so cost goes up by a fixed factor for each point of score), and drawn
+    across them, and the others' distance from it tested (fit_on_axis(), printed). `boxes`: {model: colour}, a box
+    of that colour round the model's dot and name, and `box_notes`: {model: (text, side)}, a note in the box's colour
+    above or below the box ("above" or "below"), centred on it."""
+    score_of = dict(scores.select("model", "score").rows())
+    cost_of = dict(scores.select("model", "cost").rows())
+    figure, ax = plt.subplots(figsize=(16.9, 8.5))
+    ramp = plt.get_cmap("viridis")(np.linspace(0.95, 0.05, len(groups)))  # group 1 yellow ... the last group purple
+    band_of = {}  # each model's band: its left and right edge, in % correct
+    for number, members in enumerate(groups, start=1):
+        left = max(min(score_of[m] for m in members) - BAND_PAD, 0)
+        right = min(max(score_of[m] for m in members) + BAND_PAD, 100)
+        band_of.update({m: (left, right) for m in members})
+        ax.axvspan(left, right, color=ramp[number - 1], alpha=0.22, linewidth=0, zorder=0)
+        ax.text((left + right) / 2, 1.01, f"Group {number}", transform=ax.get_xaxis_transform(), ha="center",
+                va="bottom", fontsize=18, color="#0b0b0b")
+    cheap = sorted((m for m in score_of if cost_of[m] < 0.05), key=score_of.get)  # along the bottom, left to right
+    runs = []  # runs of cheap models each within 2 points of the one before
+    for model in cheap:
+        if runs and score_of[model] - score_of[runs[-1][-1]] < 2.2:
+            runs[-1].append(model)
+        else:
+            runs.append([model])
+    fan = {m: (i - (len(run) - 1) / 2) * 30 for run in runs if len(run) >= 3 for i, m in enumerate(run)}  # points across
+    names = {}  # each model's name on the chart
+    for model in score_of:
+        ax.scatter(score_of[model], cost_of[model], s=DOT_SIZE, color=company_color(model), edgecolor="white",
+                   linewidth=1.5, zorder=3)
+        name = SCATTER_NAMES.get(model, short_name(model)).split(" (")[0]  # no "(flex)"
+        point = (score_of[model], cost_of[model])
+        if model in fan:
+            names[model] = ax.annotate(name, point, xytext=(fan[model], 40), textcoords="offset points", rotation=90, ha="center",
+                        va="bottom", fontsize=15.6, color="#0b0b0b",
+                        arrowprops=dict(arrowstyle="-", color="#8a8984", linewidth=0.8, shrinkA=0, shrinkB=8))
+        elif model in BAND_LABELS_BELOW:
+            names[model] = ax.annotate(name, point, xytext=(0, -12), textcoords="offset points", rotation=90, ha="center",
+                        va="top", fontsize=15.6, color="#0b0b0b")
+        else:
+            names[model] = ax.annotate(name, point, xytext=(0, 12), textcoords="offset points", rotation=90,
+                                       ha="center", va="bottom", fontsize=15.6, color="#0b0b0b")
+    ax.set_xlim(0, 100)
+    ax.set_yscale("symlog", linthresh=0.1, linscale=0.4)
+    ax.set_ylim(-0.02, 70)
+    if fit_models:  # fitted on the axis as it is drawn: the symlog of the cost
+        axis = ax.yaxis.get_transform()
+        height_of = dict(zip(score_of, axis.transform(np.array([cost_of[m] for m in score_of]))))
+        slope, intercept, r_squared, outside = fit_on_axis(score_of, height_of, list(fit_models))
+        print(f"Line through {len(fit_models)} models: drawn-axis height = {intercept:.3f} + {slope:.4f} x score; "
+              f"R-squared {r_squared:.2f}")
+        for model, (residual, p) in sorted(outside.items(), key=lambda item: item[1][1]):
+            print(f"  {short_name(model)}: {residual:+.2f} from the line on the drawn axis, p = {p:.4f}")
+        line = np.array([min(score_of[m] for m in fit_models), max(score_of[m] for m in fit_models)])
+        ax.plot(line, axis.inverted().transform(intercept + slope * line), color="#bdbcb7", linewidth=2.5, linestyle="--",
+                zorder=1)
+    ax.set_yticks([0, 0.1, 0.5, 1, 2, 5, 10, 20])
+    ax.set_yticklabels(["\\$0", "\\$0.10", "\\$0.50", "\\$1", "\\$2", "\\$5", "\\$10", "\\$20"])
+    ax.yaxis.set_minor_locator(plt.NullLocator())
+    ax.tick_params(labelsize=16.8)
+    ax.set_xlabel("% correct", fontsize=18)
+    ax.set_ylabel("What the model's answers cost (per trial)", fontsize=18)
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.spines[["left", "bottom"]].set_color("#8a8984")
+    for label, color in company_legend(scores["model"]).items():
+        ax.scatter([], [], s=DOT_SIZE, color=color, label=label)
+    ax.scatter([], [], s=DOT_SIZE, color=FREE_COLOR, label="Free models")
+    ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=5, fontsize=15.6, columnspacing=1.6,
+              handletextpad=0.3)  # under the x-axis label, in two rows
+    ax.grid(True, color="#e4e3df", linewidth=0.8)
+    ax.set_axisbelow(True)
+    figure.tight_layout()
+    figure.canvas.draw()  # the names' places are known only once drawn
+    for model, color in (boxes or {}).items():
+        name_box = names[model].get_window_extent()
+        x, y = ax.transData.transform((score_of[model], cost_of[model]))
+        radius = DOT_SIZE ** 0.5 / 2 * figure.dpi / 72  # the dot's radius in pixels
+        dot_box = Bbox.from_extents(x - radius, y - radius, x + radius, y + radius)
+        box = Bbox.union([name_box, dot_box]).expanded(BOX_SCALE, BOX_SCALE)
+        pad = 6
+        inches = Bbox.from_extents(box.x0 - pad, box.y0 - pad, box.x1 + pad, box.y1 + pad).transformed(
+            figure.dpi_scale_trans.inverted())
+        figure.add_artist(Rectangle((inches.x0, inches.y0), inches.width, inches.height, transform=figure.dpi_scale_trans,
+                                    fill=False, edgecolor=color, linewidth=2.5, zorder=5))
+        if model in (box_notes or {}):
+            text, side = box_notes[model]
+            above = side == "above"
+            note = figure.text(inches.x0 + inches.width / 2, inches.y1 + 0.08 if above else inches.y0 - 0.08, text,
+                               transform=figure.dpi_scale_trans, ha="center", va="bottom" if above else "top",
+                               fontsize=16.8, fontweight="bold", color=color, zorder=5)
+            edges = [ax.transData.transform((edge, 0))[0] for edge in band_of[model]]  # the band's edges, in pixels
+            extent = note.get_window_extent()
+            shift = max(edges[0] + 4 - extent.x0, 0) - max(extent.x1 - (edges[1] - 4), 0)  # keep the note in its band
+            note.set_x(note.get_position()[0] + shift / figure.dpi)
     return figure
