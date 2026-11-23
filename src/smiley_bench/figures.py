@@ -128,7 +128,8 @@ PAID_TIERS = {
         "moonshotai/kimi-k3.1-pro",
         "google/gemini-4-argon",  # added after the starting set (other/notes/models.md)
     ],
-    "high": ["anthropic/claude-opus-5.5", "openai/gpt-5.5", "anthropic/claude-fable-5.2", "openai/gpt-6-astra"],
+    "high": ["anthropic/claude-opus-5.5", "openai/gpt-5.5", "anthropic/claude-fable-5.2", "openai/gpt-6-astra",
+             "google/gemini-4-neon"],  # batch $7.50 out: between med and high; Sean put it in high (other/notes/models.md)
 }
 # One hue per tier, from the categorical slots blue, orange, aqua and violet: checked with the dataviz skill's
 # palette validator (lightness, chroma, colour-blind and normal-vision separation of neighbours all pass). The aqua
@@ -236,6 +237,7 @@ def plot_overall(
     group_labels=None,
     score_marks=None,
     extra_notes=(),
+    group_order=None,
 ):
     """A bar for each model's overall % correct (scores: model, score, answered, and optionally lower and upper, its
     95% interval in %, and cost, the dollars its answers cost, shown above the bar), grouped by tier from free to high, one hue per tier and a shade of it per model. Within a tier
@@ -255,6 +257,8 @@ def plot_overall(
     score_marks: {model: mark}, drawn above the model's score (e.g. "*"), and extra_notes: lines added to the note
     below the chart, e.g. to say what the mark means.
 
+    group_order: the names of tier_of's groups, left to right, if they are not the price tiers (TIERS).
+
     `comparisons` (from compare_models, run within each tier: model_a, model_b, p_adjusted) adds a bracket for every
     pair of models that differ at Holm-adjusted p < 0.05, stacked as in plot_pass_at_1()."""
     tier_of = tier_of or {model: tier(model) for model in scores["model"]}
@@ -271,7 +275,7 @@ def plot_overall(
     else:
         color_of = model_colors(scores["model"].to_list(), tier_of)
     group_ends = {}  # the first and last bar of each group: (left position, right position)
-    for name in TIERS:
+    for name in group_order or TIERS:
         in_tier = scores.filter(pl.col("tier") == name)
         if in_tier.height == 0:
             continue
@@ -523,7 +527,8 @@ LABEL_OFFSETS = {
     "openai/gpt-6-astra": (-9, 0),
     "google/gemini-4-carbon": (9, -12),
     "x-ai/grok-4.7": (-9, 0),
-    "google/gemini-4-argon": (9, -8),
+    "google/gemini-4-argon": (9, 6),
+    "deepseek/deepseek-v4.1-flash-1017": (9, -12),
 }
 # Models too close to others to name beside their dot: the name goes at this cost and % correct, with a thin line
 # to the dot (free particle-1 to the right; haiku above and to the left, clear of particle-1 (flex))

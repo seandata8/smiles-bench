@@ -288,3 +288,20 @@ def compare_models(results, n_permutations=10_000, seed=853, levels=LEVELS):
             row["p_adjusted"] = adjusted
         rows.extend(level_rows)
     return pl.DataFrame(rows)
+
+
+def groups_by_difference(models, p_value, alpha=0.05):
+    """Models grouped by whether they differ. `models` best score first. The first group starts with the best model;
+    each next model is tested against the middle model of the current group (the higher-scoring of the two middle
+    ones, if the group has an even number): p_value(a, b) is the p-value of the test between two models. A model joins
+    the group unless that p-value is below `alpha`, when it starts the next group. Tested only against the middle, so
+    two members of one group may differ from each other."""
+    groups = []
+    for model in models:
+        if groups:
+            group = groups[-1]
+            if p_value(group[(len(group) - 1) // 2], model) >= alpha:
+                group.append(model)
+                continue
+        groups.append([model])
+    return groups
