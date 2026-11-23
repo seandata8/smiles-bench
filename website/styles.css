@@ -126,3 +126,4 @@ figcaption.quarto-float-caption { color: #3a3a3a !important; }
 
 /* The 3D models of a hardest molecule and its parent (3Dmol.js draws into these) */
 .viewer-3d { position: relative; width: 80%; aspect-ratio: 1 / 1; margin: 0 auto; border: 1.5px solid #d9cfb4; border-radius: 10px; }
+.viewer-3d-single { width: 32%; }  /* one model on its own, not a pair */
