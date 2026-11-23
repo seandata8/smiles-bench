@@ -1,7 +1,7 @@
 #### Preamble ####
 # Purpose: One 3D model of the benchmark's maitotoxin derivative (too big to show two side by side), with Sean's
 #          changes in clouds and labelled: the benzyl ether and the C=C added (blue), and the OH removed (red, where its
-#          O was) (website Discussion, "Lost Count")
+#          O was) (website Discussion, "Too Large")
 # Author: Sean Murphy
 # Date: 23 November 2026
 # Pre-requisites: PubChem's maitotoxin (CID 71460273, its 2D record) as data/01-raw_data/structures/website/
