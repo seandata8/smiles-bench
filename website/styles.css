@@ -127,3 +127,10 @@ figcaption.quarto-float-caption { color: #3a3a3a !important; }
 /* The 3D models of a hardest molecule and its parent (3Dmol.js draws into these) */
 .viewer-3d { position: relative; width: 80%; aspect-ratio: 1 / 1; margin: 0 auto; border: 1.5px solid #d9cfb4; border-radius: 10px; }
 .viewer-3d-single { width: 32%; }  /* one model on its own, not a pair */
+
+/* Work-in-progress note under the title */
+.wip-note { background: #fff4d6; border: 1.5px solid #e0bd52; border-radius: 8px; padding: 0.6rem 1rem; margin: 1.25rem 0; font-size: 0.95rem; }
+.wip-note p { margin: 0; }
+
+/* Plain line between two molecules in the same Discussion sub-section */
+.molecule-divider { border-top: 1.5px solid #d9cfb4; margin: 2rem 0; }
