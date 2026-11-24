@@ -2,7 +2,7 @@
 
 > **Work in progress.** A project for STA2453 Data Science Methods at the University of Toronto. The results and text are still being updated.
 
-**Website:** <https://seandata8.github.io/smiley-bench/>
+**Website:** <https://seandata8.github.io/smiles-bench/>
 
 ## Overview
 
